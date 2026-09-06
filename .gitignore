@@ -1,0 +1,28 @@
+# Repository-wide ignores. The Laravel app keeps its own .gitignore in
+# temp_app/; these are the things that must never leave this machine no matter
+# where they appear, because the shop's real records live in them.
+
+# The working database: staff accounts and password hashes, plus client names,
+# phone numbers and email addresses from every inquiry ever submitted.
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Backup archives contain a full copy of that same database.
+/temp_app/storage/app/backups/
+
+# Files clients uploaded with their inquiries.
+/temp_app/storage/app/private/
+
+# Runtime state, rewritten on every launch.
+/temp_app/storage/app/public-tunnel-url.txt
+
+# Anything holding credentials.
+.env
+.env.*
+!.env.example
+
+# OS and editor noise
+Thumbs.db
+.DS_Store

@@ -1,0 +1,6 @@
+@extends('layouts.admin')
+@section('title', 'Activity Log')
+@section('content')
+<div class="topline"><div><span class="page-kicker">Audit trail</span><h1>Activity log</h1><div class="muted small">Who changed what, and when.</div></div></div>
+<div class="card table-card" style="padding:0;overflow:auto"><table><thead><tr><th>Activity</th><th>Person</th><th>When</th><th>Changes</th></tr></thead><tbody>@forelse($activities as $activity)<tr><td><strong>{{ $activity->description }}</strong></td><td>{{ $activity->user?->name ?? 'Public/system' }}</td><td>{{ $activity->created_at->format('M j, Y g:i A') }}</td><td class="muted small">@forelse($activity->changes ?? [] as $field=>$change)<div><strong>{{ str($field)->replace('_',' ')->title() }}:</strong> @if(is_array($change) && array_key_exists('to',$change)){{ is_scalar($change['from']) ? ($change['from'] ?: 'empty') : 'updated' }} → {{ is_scalar($change['to']) ? ($change['to'] ?: 'empty') : 'updated' }}@else set to {{ is_scalar($change) ? $change : 'updated' }}@endif</div>@empty—@endforelse</td></tr>@empty<tr><td colspan="4" class="empty">No activity has been recorded yet.</td></tr>@endforelse</tbody></table></div>{{ $activities->links() }}
+@endsection

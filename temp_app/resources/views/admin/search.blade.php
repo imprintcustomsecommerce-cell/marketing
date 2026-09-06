@@ -1,0 +1,4 @@
+@extends('layouts.admin') @section('title','Search') @section('content')
+<div class="topline"><div><span class="page-kicker">Workspace search</span><h1>Results for “{{ $q }}”</h1><div class="muted small">Events, inquiries, endorsers, tasks, contacts, and reference numbers</div></div></div>
+<section class="card">@forelse($results as $result)<a href="{{ $result['url'] }}" style="display:flex;gap:14px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line-soft);text-decoration:none"><span class="pill pill-pending">{{ $result['type'] }}</span><span><strong>{{ $result['title'] }}</strong><span class="muted small" style="display:block">{{ $result['meta'] }}</span></span></a>@empty<p class="muted">{{ $q ? 'No records matched your search.' : 'Enter something in the search box above.' }}</p>@endforelse</section>
+@endsection
