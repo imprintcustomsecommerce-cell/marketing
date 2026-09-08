@@ -164,5 +164,6 @@
         <span class="est">Imprint Customs · Est. 2013</span>
     </div>
 </footer>
+@include('partials.password-reveal')
 </body>
 </html>

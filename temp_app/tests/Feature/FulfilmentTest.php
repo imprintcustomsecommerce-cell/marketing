@@ -128,6 +128,8 @@ class FulfilmentTest extends TestCase
         $this->actingAs($admin)->post('/admin/events', [
             'name' => 'Sunday Ride Meet',
             'category' => 'tambike',
+            'event_type' => 'tambike',
+            'event_category' => 'motorcycle',
             'event_date' => '2026-10-04',
             'status' => 'confirmed',
             'group_chat_url' => 'https://m.me/j/RideMeet99/',
@@ -146,6 +148,8 @@ class FulfilmentTest extends TestCase
         $this->actingAs($this->admin())->post('/admin/events', [
             'name' => 'Sunday Ride Meet',
             'category' => 'tambike',
+            'event_type' => 'tambike',
+            'event_category' => 'motorcycle',
             'event_date' => '2026-10-04',
             'status' => 'confirmed',
             'group_chat_url' => 'the viber group',

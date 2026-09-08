@@ -49,6 +49,8 @@ class CoverageHandoffTest extends TestCase
         return array_merge([
             'name' => 'Sunday Ride-Out',
             'category' => 'tambike',
+            'event_type' => 'tambike',
+            'event_category' => 'motorcycle',
             'event_date' => today()->addWeek()->toDateString(),
             'status' => 'confirmed',
         ], $overrides);
@@ -224,10 +226,14 @@ class CoverageHandoffTest extends TestCase
             ->post("/admin/coverage/{$event->id}/respond", ['answer' => 'accept'])
             ->assertOk();
 
+        // The request itself is no longer pending. The "With multimedia" panel
+        // can still be on screen for the production tasks the accepting crew
+        // member's specialty did not cover, so assert on the request line.
+        $this->assertSame(CoverageDesk::ACCEPTED, $event->fresh()->coverage->stage);
+
         $this->actingAs($joey)->get('/admin')
             ->assertOk()
-            ->assertDontSee('coverage request with multimedia')
-            ->assertDontSee('With multimedia');
+            ->assertDontSee('coverage request with multimedia');
     }
 
     /**

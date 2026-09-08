@@ -117,14 +117,17 @@ class CoverageController extends Controller
     {
         $answer = $request->validate([
             'answer' => ['required', Rule::in(['accept', 'decline'])],
+            'specialty' => ['nullable', Rule::in(['shooter', 'photo', 'video'])],
         ])['answer'];
+        $specialty = $request->input('specialty') ?: ($request->user()->multimedia_specialty === 'photo' ? 'photo' : ($request->user()->multimedia_specialty === 'video' ? 'video' : 'shooter'));
+        abort_unless($request->user()->isAdmin() || $specialty !== null, 422, 'Choose the multimedia role you want to take.');
 
         // An event with no coverage row predates the handoff, so opening one
         // here is what accepting it means.
         $coverage = $event->coverage ?: $desk->request($event, $request->user());
 
         $answer === 'accept'
-            ? $desk->accept($coverage, $request->user())
+            ? $desk->accept($coverage, $request->user(), ! $request->user()->isAdmin(), $specialty)
             : $desk->decline($coverage, $request->user());
 
         return back()->with('success', $answer === 'accept'

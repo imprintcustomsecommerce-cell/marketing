@@ -295,7 +295,13 @@
                         <h2>With multimedia</h2>
                         <a class="button ghost" href="{{ auth()->user()->canSeeMultimedia() ? route('admin.coverage.index', ['show' => 'requested']) : route('admin.events.index', ['when' => 'all']) }}">Open</a>
                     </div>
-                    <p class="muted small" style="margin:-6px 0 12px">Sent over and not taken on yet.</p>
+                    {{-- The panel carries two different things: coverage requests
+                         nobody has answered, and production tasks still unclaimed.
+                         Since a crew member only claims the tasks for the role they
+                         take on, work can sit here while the request itself has been
+                         accepted — saying "not taken on yet" of both read as nobody
+                         having picked the job up at all. --}}
+                    <p class="muted small" style="margin:-6px 0 12px">Requests waiting for an answer, and production work nobody has taken.</p>
 
                     @foreach($awaitingCrew as $coverage)
                         <div class="row">
@@ -317,11 +323,46 @@
                             <span>
                                 <span class="nm">{{ $queued->title }}</span>
                                 <div class="meta">
-                                    Task
+                                    {{ $queued->crewRoleLabel() }}
                                     @if($queued->raisedBy) · from {{ $queued->raisedBy->name }} @endif
                                 </div>
                             </span>
                             <span class="when">{{ $queued->created_at?->diffForHumans(short: true) }}</span>
+                        </div>
+                    @endforeach
+                </section>
+            @endif
+
+            @if($birthdays->isNotEmpty())
+                {{-- Greeting an endorser is cheap and remembering is the hard
+                     part, so the next fortnight is on the dashboard by name. --}}
+                <section class="card">
+                    <div class="panel-head">
+                        <h2>Birthdays to greet</h2>
+                        <a class="button ghost" href="{{ route('admin.endorsers.index') }}">Open</a>
+                    </div>
+                    <p class="muted small" style="margin:-6px 0 12px">Endorsers with a birthday in the next two weeks.</p>
+
+                    @foreach($birthdays as $endorser)
+                        @php
+                            $daysAway = $endorser->daysUntilBirthday();
+                        @endphp
+                        <div class="row">
+                            <span class="dot" style="background:{{ $daysAway === 0 ? '#ef4444' : '#f59e0b' }}"></span>
+                            <span>
+                                <span class="nm">{{ $endorser->name }}</span>
+                                <div class="meta">
+                                    {{ $endorser->nextBirthday()->format('M j') }}
+                                    @if($endorser->turningAge()) · turning {{ $endorser->turningAge() }} @endif
+                                    @if($endorser->contact_number) · {{ $endorser->contact_number }} @endif
+                                </div>
+                            </span>
+                            <span class="when">
+                                @if($daysAway === 0) today
+                                @elseif($daysAway === 1) tomorrow
+                                @else in {{ $daysAway }}d
+                                @endif
+                            </span>
                         </div>
                     @endforeach
                 </section>

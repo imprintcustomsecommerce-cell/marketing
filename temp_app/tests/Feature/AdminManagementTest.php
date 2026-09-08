@@ -27,6 +27,7 @@ class AdminManagementTest extends TestCase
         $user = User::factory()->create(['is_active' => true]);
         $this->actingAs($user)->post('/admin/events', [
             'name' => 'Dealer Conference', 'category' => 'function_hall',
+            'event_type' => 'in_house', 'event_category' => 'others',
             'organization' => 'Imprint Customs',
             'event_date' => '2026-09-12', 'status' => 'new', 'venue' => 'Main Hall',
         ])->assertRedirect('/admin/events');

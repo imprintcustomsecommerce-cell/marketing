@@ -163,10 +163,14 @@ class GiveawayAndFormFieldsTest extends TestCase
     {
         $admin = $this->admin();
 
-        foreach (Event::CATEGORIES as $category => $label) {
+        // The tab strip is driven by event_type — the field the form actually
+        // offers — not the legacy `category` column.
+        foreach (Event::EVENT_TYPES as $type => $label) {
             $this->actingAs($admin)->post('/admin/events', [
-                'name' => "Sample {$category}",
-                'category' => $category,
+                'name' => "Sample {$type}",
+                'category' => 'tambike',
+                'event_type' => $type,
+                'event_category' => 'motorcycle',
                 'event_date' => '2026-10-04',
                 'status' => 'confirmed',
             ])->assertRedirect('/admin/events');
@@ -175,17 +179,17 @@ class GiveawayAndFormFieldsTest extends TestCase
         $this->assertSame(3, Event::count());
 
         // Filtering shows only that type.
-        $this->actingAs($admin)->get('/admin/events?category=function_hall')
+        $this->actingAs($admin)->get('/admin/events?category=in_house')
             ->assertOk()
-            ->assertSee('Sample function_hall')
-            ->assertDontSee('Sample tambike');
+            ->assertSee('Sample in_house')
+            ->assertDontSee('Sample outside_event');
 
         // No filter shows all three.
         $this->actingAs($admin)->get('/admin/events')
             ->assertOk()
-            ->assertSee('Tambike Event')
-            ->assertSee('Function Hall Rental')
-            ->assertSee('External Event Sponsorship');
+            ->assertSee('IN-HOUSE')
+            ->assertSee('OUTSIDE EVENT')
+            ->assertSee('TAMBIKE');
     }
 
     public function test_the_events_list_opens_on_what_is_coming_up(): void
@@ -235,6 +239,8 @@ class GiveawayAndFormFieldsTest extends TestCase
         $this->actingAs($this->admin())->post('/admin/events', [
             'name' => 'Mystery',
             'category' => 'birthday',
+            'event_type' => 'tambike',
+            'event_category' => 'motorcycle',
             'event_date' => '2026-10-04',
             'status' => 'new',
         ])->assertSessionHasErrors('category');

@@ -29,7 +29,7 @@ class EventController extends Controller
 
         $filtered = fn ($query) => $query
             ->when($period === 'archived', fn ($q) => $q->whereNotNull('archived_at'), fn ($q) => $q->whereNull('archived_at'))
-            ->when(array_key_exists($category, Event::CATEGORIES), fn ($q) => $q->where('category', $category))
+            ->when(array_key_exists($category, Event::EVENT_TYPES), fn ($q) => $q->where('event_type', $category))
             ->when($search !== '', function ($q) use ($search): void {
                 $like = '%'.addcslashes($search, '%_\\').'%';
                 $q->where(function ($inner) use ($like): void {
@@ -61,7 +61,7 @@ class EventController extends Controller
             'counts' => Event::query()->tap($filtered)
                 ->when($period === 'upcoming', fn ($q) => $q->whereDate('event_date', '>=', today()))
                 ->when($period === 'past', fn ($q) => $q->whereDate('event_date', '<', today()))
-                ->selectRaw('category, count(*) as total')->groupBy('category')->pluck('total', 'category'),
+                ->selectRaw('event_type, count(*) as total')->groupBy('event_type')->pluck('total', 'event_type'),
             'periodCounts' => [
                 'upcoming' => Event::query()->tap($filtered)->whereDate('event_date', '>=', today())->count(),
                 'past' => Event::query()->tap($filtered)->whereDate('event_date', '<', today())->count(),
@@ -181,6 +181,8 @@ class EventController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'category' => ['required', Rule::in(array_keys(Event::CATEGORIES))],
+            'event_type' => ['required', Rule::in(['in_house','outside_event','tambike'])],
+            'event_category' => ['required', Rule::in(['motorcycle','automotive','car','others'])],
             'organization' => ['nullable', 'string', 'max:255'],
             'contact_person' => ['nullable', 'string', 'max:255'],
             'contact_number' => ['nullable', 'string', 'max:60'],
@@ -196,3 +198,6 @@ class EventController extends Controller
         ]);
     }
 }
+
+
+

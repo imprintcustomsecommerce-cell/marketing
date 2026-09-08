@@ -129,7 +129,7 @@ class CalendarController extends Controller
             'date' => $event->event_date->toDateString(),
             'kind' => 'event',
             'label' => $event->name,
-            'meta' => $event->categoryLabel().' · '.($event->venue ?: 'Venue not set'),
+            'meta' => $event->eventTypeLabel().' · '.($event->venue ?: 'Venue not set'),
             'time' => $event->start_time,
             'status' => $event->status,
             'url' => route('admin.events.edit', $event),

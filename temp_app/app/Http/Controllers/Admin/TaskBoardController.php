@@ -121,6 +121,17 @@ class TaskBoardController extends Controller
 
         abort_unless($task->isUnclaimed(), 404);
         abort_unless($user->team === $task->for_team, 403);
+        if ($task->for_team === User::TEAM_MULTIMEDIA && ! $user->isAdmin()) {
+            $required = match (true) {
+                str_contains(strtolower($task->title), 'video') => 'video',
+                str_contains(strtolower($task->title), 'photo') => 'photo',
+                str_contains(strtolower($task->title), 'shoot'), str_contains(strtolower($task->title), 'cover event') => 'shooter',
+                default => 'all',
+            };
+            // Existing crew accounts without a specialty remain eligible until
+            // an admin chooses a narrower assignment in Team.
+            abort_unless(! $user->multimedia_specialty || $user->multimedia_specialty === 'all' || $user->multimedia_specialty === $required, 403, 'This task is reserved for the matching multimedia role.');
+        }
 
         $desk->claim($task, $user);
 

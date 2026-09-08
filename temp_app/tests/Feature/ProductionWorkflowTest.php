@@ -23,11 +23,11 @@ class ProductionWorkflowTest extends TestCase
     public function test_event_creation_generates_the_multimedia_production_plan(): void
     {
         $this->actingAs($this->admin())->post('/admin/events', [
-            'name' => 'Launch Night', 'category' => 'tambike', 'event_date' => today()->addWeek()->toDateString(), 'status' => 'confirmed',
+            'name' => 'Launch Night', 'category' => 'tambike', 'event_type' => 'tambike', 'event_category' => 'motorcycle', 'event_date' => today()->addWeek()->toDateString(), 'status' => 'confirmed',
         ])->assertRedirect();
 
         $event = Event::firstOrFail();
-        $this->assertCount(4, Task::where('event_id', $event->id)->where('for_team', User::TEAM_MULTIMEDIA)->get());
+        $this->assertCount(5, Task::where('event_id', $event->id)->where('for_team', User::TEAM_MULTIMEDIA)->get());
         $this->assertTrue($event->coverage->photo_due_on->isSameDay($event->event_date->copy()->addDays(2)));
         $this->assertTrue($event->coverage->video_due_on->isSameDay($event->event_date->copy()->addDays(4)));
     }
@@ -87,7 +87,7 @@ class ProductionWorkflowTest extends TestCase
     {
         $admin=$this->admin(); $event=Event::create(['name'=>'Move Me','category'=>'tambike','event_date'=>today()->addDays(5),'status'=>'confirmed','created_by'=>$admin->id]);
         $coverage=app(CoverageDesk::class)->request($event,$admin); $task=$event->tasks()->first(); $oldTaskDate=$task->task_date->copy();
-        $this->actingAs($admin)->put("/admin/events/{$event->id}",['name'=>'Move Me','category'=>'tambike','event_date'=>today()->addDays(8)->toDateString(),'status'=>'confirmed'])->assertRedirect();
+        $this->actingAs($admin)->put("/admin/events/{$event->id}",['name'=>'Move Me','category'=>'tambike','event_type'=>'tambike','event_category'=>'motorcycle','event_date'=>today()->addDays(8)->toDateString(),'status'=>'confirmed'])->assertRedirect();
         $this->assertTrue($task->fresh()->task_date->isSameDay($oldTaskDate->addDays(3)));
         $this->assertTrue($coverage->fresh()->photo_due_on->isSameDay(today()->addDays(10)));
     }

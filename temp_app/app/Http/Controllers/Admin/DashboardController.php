@@ -76,6 +76,11 @@ class DashboardController extends Controller
                 ->limit(5)
                 ->get(),
 
+            // Who to greet. A birthday is only useful if somebody sees it coming,
+            // so the next two weeks sit on the dashboard rather than waiting to
+            // be found on the endorser's own record.
+            'birthdays' => Endorser::greetingsDue(14),
+
             'attention' => $this->attention($user),
         ]);
     }

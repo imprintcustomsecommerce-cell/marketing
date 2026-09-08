@@ -94,6 +94,24 @@
         .pill-missed{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
 
         .notice{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;padding:13px 16px;border-radius:var(--radius);margin-bottom:18px;font-weight:600}
+        /* A warning is the one flash the reader must not scroll past — the
+           forced password change sits behind it — so it lands as a centred
+           dialog over a dimmed workspace rather than a strip above the fold. */
+        .flash-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.62);
+            display:flex;align-items:center;justify-content:center;padding:24px;z-index:80}
+        .flash-dialog{background:#fff;border-radius:calc(var(--radius) + 6px);
+            box-shadow:0 24px 60px rgba(15,23,42,.32);max-width:440px;width:100%;
+            padding:28px;text-align:center}
+        .flash-dialog h2{margin:0 0 8px;font-size:19px;color:#0f172a}
+        .flash-dialog p{margin:0 0 20px;color:#475569;line-height:1.5}
+        .flash-dialog button{background:var(--accent,#f59e0b);color:#3f2d05;border:0;
+            border-radius:var(--radius);padding:11px 26px;font-weight:700;
+            font-size:15px;cursor:pointer;font-family:inherit}
+        .flash-dialog button:hover{filter:brightness(.95)}
+        @media (prefers-reduced-motion:no-preference){
+            .flash-dialog{animation:flash-in .16s ease-out}
+            @keyframes flash-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+        }
         .errors{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;padding:13px 16px;border-radius:var(--radius);margin-bottom:18px}
         .errors ul{margin:8px 0 0;padding-left:20px}
 
@@ -539,7 +557,15 @@
 
         <main class="main">
             @if(session('success'))<div class="notice">{{ session('success') }}</div>@endif
-            @if(session('warning'))<div class="notice" style="background:#fffbeb;color:#92400e;border-color:#fde68a">{{ session('warning') }}</div>@endif
+            @if(session('warning'))
+                <div class="flash-backdrop" id="flash-warning" role="alertdialog" aria-modal="true" aria-labelledby="flash-warning-title">
+                    <div class="flash-dialog">
+                        <h2 id="flash-warning-title">Before you continue</h2>
+                        <p>{{ session('warning') }}</p>
+                        <button type="button" autofocus onclick="document.getElementById('flash-warning').remove()">Got it</button>
+                    </div>
+                </div>
+            @endif
             @if($errors->any())
                 <div class="errors"><strong>Please correct these fields:</strong>
                     <ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
@@ -622,5 +648,6 @@
         });
     })();
 </script>
+@include('partials.password-reveal')
 </body>
 </html>

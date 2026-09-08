@@ -93,6 +93,8 @@ class EndorserController extends Controller
             'contact_number' => ['nullable', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:255'],
             'team_or_group' => ['nullable', 'string', 'max:255'],
+            // A birthday in the future is a typo, not a birthday.
+            'birthday' => ['nullable', 'date', 'before_or_equal:today'],
             'social_media_url' => ['nullable', 'url', 'max:500'],
             'group_chat_url' => ['nullable', 'url', 'max:500'],
             'status' => ['required', Rule::in(['new', 'active', 'pending', 'inactive'])],

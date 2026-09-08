@@ -23,6 +23,7 @@ class User extends Authenticatable
     public const TEAM_MULTIMEDIA = 'multimedia';
 
     public const TEAMS = [self::TEAM_MARKETING => 'Marketing', self::TEAM_MULTIMEDIA => 'Multimedia'];
+    public const MULTIMEDIA_SPECIALTIES = ['all' => 'Shooter + photo + video', 'shooter' => 'Shooter', 'photo' => 'Photo editor', 'video' => 'Video editor'];
 
     /** Public URL of the profile picture, or null when there is none. */
     public function avatarUrl(): ?string
@@ -95,6 +96,7 @@ class User extends Authenticatable
         'avatar_path',
         'is_active',
         'must_change_password', 'last_login_at', 'last_login_ip', 'deadline_reminder_sent_on',
+        'multimedia_specialty',
     ];
 
     /**

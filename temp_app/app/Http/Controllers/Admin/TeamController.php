@@ -45,7 +45,7 @@ class TeamController extends Controller
 
     public function create(): View
     {
-        return view('admin.team.form', ['user' => new User(['role' => 'staff', 'team' => User::TEAM_MULTIMEDIA, 'is_active' => true])]);
+        return view('admin.team.form', ['user' => new User(['role' => 'staff', 'team' => User::TEAM_MULTIMEDIA, 'multimedia_specialty' => 'all', 'is_active' => true])]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -98,6 +98,7 @@ class TeamController extends Controller
             'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users')->ignore($user)],
             'role' => ['required', Rule::in(array_keys(User::ROLES))],
             'team' => ['required', Rule::in(array_keys(User::TEAMS))],
+            'multimedia_specialty' => ['required', Rule::in(array_keys(User::MULTIMEDIA_SPECIALTIES))],
             'is_active' => ['required', 'boolean'],
             'password' => [$user ? 'nullable' : 'required', Password::min(8)],
         ];

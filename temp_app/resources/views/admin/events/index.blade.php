@@ -29,6 +29,9 @@
     .cat-tambike{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
     .cat-function_hall{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe}
     .cat-external_sponsorship{background:#fffbeb;color:#b45309;border-color:#fde68a}
+    .cat-in_house{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+    .cat-outside_event{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+    .cat-unset{background:#f8fafc;color:#64748b;border-color:#e2e8f0}
 
     .when{white-space:nowrap}
     .when .d{font-weight:650}
@@ -116,7 +119,7 @@
         <a class="{{ $category === '' ? 'on' : '' }}" href="{{ route('admin.events.index', Arr::except($base, ['category'])) }}">
             All types <span class="count">{{ $counts->sum() }}</span>
         </a>
-        @foreach(App\Models\Event::CATEGORIES as $value => $label)
+        @foreach(App\Models\Event::EVENT_TYPES as $value => $label)
             <a class="{{ $category === $value ? 'on' : '' }}" href="{{ route('admin.events.index', Arr::except($base, ['category']) + ['category' => $value]) }}">
                 {{ $label }} <span class="count">{{ $counts[$value] ?? 0 }}</span>
             </a>
@@ -161,7 +164,7 @@
             @endphp
             <tr>
                 <td><a class="nm" href="{{ route('admin.events.show', $event) }}"><strong>{{ $event->name }}</strong></a><div class="muted small">{{ $event->organization }}</div></td>
-                <td><span class="cat cat-{{ $event->category }}">{{ $event->categoryLabel() }}</span></td>
+                <td><span class="cat cat-{{ $event->event_type ?: 'unset' }}">{{ $event->eventTypeLabel() }}</span></td>
                 <td class="when">
                     <div class="d">{{ $event->event_date->format('M j, Y') }}</div>
                     <div class="rel {{ $days >= 0 && $days <= 7 ? 'soon' : '' }}">
@@ -229,7 +232,7 @@
                     @if($event->venue) · {{ $event->venue }} @endif
                 </div>
                 <div class="foot">
-                    <span class="cat cat-{{ $event->category }}">{{ $event->categoryLabel() }}</span>
+                    <span class="cat cat-{{ $event->event_type ?: 'unset' }}">{{ $event->eventTypeLabel() }}</span>
                     @if($shooter)
                         <span class="shoot yes"><span class="dot"></span>{{ $shooter->name }}</span>
                     @elseif($waiting)

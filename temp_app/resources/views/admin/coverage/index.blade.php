@@ -137,6 +137,10 @@
                 // no coverage row was never handed over, so it stays an
                 // ordinary line rather than appearing as an unanswered request.
                 $waiting = $coverage?->isRequested() ?? false;
+                // Someone has answered, but roles on the job are still unclaimed
+                // and the crew are the ones who can take them.
+                $openToCrew = ! $waiting && ! auth()->user()->isAdmin()
+                    && ($coverage?->isAccepted() ?? false) && ($coverage?->openRoles() ?? []) !== [];
             @endphp
             <tr class="{{ $waiting ? 'new-job' : '' }}">
                 <td class="date">
@@ -147,7 +151,7 @@
                     <div class="ev">
                         <div class="nm">{{ $event->name }}</div>
                         <div class="sub">
-                            {{ $event->categoryLabel() }}
+                            {{ $event->eventTypeLabel() }}
                             @if($event->venue) · {{ $event->venue }} @endif
                         </div>
                         @if($waiting)
@@ -185,12 +189,15 @@
                     </div>
                 </td>
                 <td class="respond-cell">
-                    @if($waiting)
+                    @if($waiting || ($openToCrew ?? false))
                         <div class="respond">
-                            <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf
-                                <input type="hidden" name="answer" value="accept">
-                                <button class="take" type="submit">Take it on</button>
-                            </form>
+                            @if(auth()->user()->isAdmin())
+                                <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf<input type="hidden" name="answer" value="accept"><button class="take" type="submit">Accept coverage</button></form>
+                            @else
+                                @foreach($coverage?->openRoles() ?? [] as $role => $label)
+                                    <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf<input type="hidden" name="answer" value="accept"><input type="hidden" name="specialty" value="{{ $role }}"><button class="take" type="submit">{{ $label }}</button></form>
+                                @endforeach
+                            @endif
                             <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf
                                 <input type="hidden" name="answer" value="decline">
                                 <button type="submit">Not needed</button>
@@ -229,7 +236,7 @@
                     @endif
                 </div>
                 <div class="meta">
-                    {{ $event->event_date->format('M j, Y') }} · {{ $event->categoryLabel() }}
+                    {{ $event->event_date->format('M j, Y') }} · {{ $event->eventTypeLabel() }}
                     @if($event->venue) · {{ $event->venue }} @endif
                 </div>
                 @if($coverage?->remarks)
@@ -251,13 +258,13 @@
                         </span>
                     </div>
                     <div class="respond">
-                        <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf
-                            <input type="hidden" name="answer" value="accept">
-                            <button class="take" type="submit">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>
-                                Take it on
-                            </button>
-                        </form>
+                        @if(auth()->user()->isAdmin())
+                            <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf<input type="hidden" name="answer" value="accept"><button class="take" type="submit">Accept coverage</button></form>
+                        @else
+                            @foreach($coverage?->openRoles() ?? [] as $role => $label)
+                                <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf<input type="hidden" name="answer" value="accept"><input type="hidden" name="specialty" value="{{ $role }}"><button class="take" type="submit">{{ $label }}</button></form>
+                            @endforeach
+                        @endif
                         <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf
                             <input type="hidden" name="answer" value="decline">
                             <button type="submit">Not needed</button>

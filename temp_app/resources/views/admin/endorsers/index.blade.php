@@ -24,6 +24,9 @@
     .who .nm{font-weight:700}
     .who .sub{font-size:.79rem;color:var(--muted)}
 
+    .bday{display:inline-block;margin-left:7px;padding:2px 8px;border-radius:999px;font-size:.68rem;
+        font-weight:700;white-space:nowrap;background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+    .bday.today{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
     .type-tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;border:1px solid var(--line);background:#faf8f4;color:var(--ink-soft);white-space:nowrap}
 
     .contact a{display:block;font-size:.84rem;text-decoration:none;color:var(--ink-soft)}
@@ -134,6 +137,7 @@
                         <span class="pic">{{ mb_strtoupper(mb_substr($endorser->name, 0, 1)) }}</span>
                         <span>
                             <span class="nm">{{ $endorser->name }}</span>
+                            @include('admin.endorsers.birthday-badge', ['endorser' => $endorser])
                             @if($endorser->team_or_group)<div class="sub">{{ $endorser->team_or_group }}</div>@endif
                         </span>
                     </span>
@@ -195,6 +199,7 @@
                         <span class="pic">{{ mb_strtoupper(mb_substr($endorser->name, 0, 1)) }}</span>
                         <span>
                             <span class="nm">{{ $endorser->name }}</span>
+                            @include('admin.endorsers.birthday-badge', ['endorser' => $endorser])
                             <div class="sub">{{ $endorser->team_or_group ?: str($endorser->type)->title() }}</div>
                         </span>
                     </span>

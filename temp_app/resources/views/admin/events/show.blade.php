@@ -7,14 +7,14 @@
 <style>.event-head{padding:26px;background:linear-gradient(135deg,#111827,#1f2937);color:#fff;border-radius:18px;margin-bottom:18px;position:relative;overflow:hidden}.event-head::after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;right:-90px;top:-140px;background:#f59e0b25}.event-head .muted{color:#cbd5e1}.event-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:18px}.detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}.datum{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--canvas)}.datum small{display:block;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:.66rem;font-weight:750}.datum strong{display:block;margin-top:3px}.row-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft)}.row-item:last-child{border:0}.row-main{flex:1}.row-main strong{display:block}.file-form{display:flex;gap:9px;align-items:center;margin-top:14px}.file-form input{flex:1}.timeline{border-left:2px solid #fde68a;margin-left:6px;padding-left:18px}.timeline-item{position:relative;padding:0 0 16px}.timeline-item::before{content:"";position:absolute;left:-24px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--accent)}@media(max-width:900px){.event-grid,.detail-grid{grid-template-columns:1fr}.file-form{align-items:stretch;flex-direction:column}}</style>
 <div class="event-head">
     <div class="topline" style="position:relative;z-index:1;margin:0">
-        <div><span class="page-kicker" style="color:#fcd34d">{{ $event->categoryLabel() }}</span><h1>{{ $event->name }}</h1><div class="muted small">{{ $event->event_date->format('l, F j, Y') }} · {{ $event->venue ?: 'Venue not set' }}</div></div>
+        <div><span class="page-kicker" style="color:#fcd34d">{{ $event->eventTypeLabel() }} · {{ $event->eventCategoryLabel() }}</span><h1>{{ $event->name }}</h1><div class="muted small">{{ $event->event_date->format('l, F j, Y') }} · {{ $event->venue ?: 'Venue not set' }}</div></div>
         <div style="display:flex;gap:9px;flex-wrap:wrap"><span class="pill pill-{{ $event->status }}">{{ str($event->status)->title() }}</span><a class="button ghost" href="{{ route('admin.events.summary', $event) }}" target="_blank">Print summary</a><a class="button" href="{{ route('admin.events.edit', $event) }}">Edit event</a></div>
     </div>
 </div>
 
 <div class="event-grid">
     <div>
-        <section class="card"><div class="topline" style="margin-bottom:14px"><h2>Event details</h2><div style="display:flex;gap:10px;align-items:center"><a class="edit" href="{{ route('admin.calendar', ['date' => $event->event_date->toDateString()]) }}">Open calendar</a>@unless($event->archived_at)<form method="post" action="{{ route('admin.events.archive', $event) }}">@csrf @method('patch')<button class="edit" style="border:0;background:none;cursor:pointer" type="submit">Archive</button></form>@endunless</div></div><div class="detail-grid">
+        <section class="card"><div class="topline" style="margin-bottom:14px"><h2>Event details</h2><div style="display:flex;gap:10px;align-items:center"><a class="edit" href="{{ route('admin.calendar', ['date' => $event->event_date->toDateString()]) }}">Open calendar</a>@unless($event->archived_at)<form method="post" action="{{ route('admin.events.archive', $event) }}">@csrf @method('patch')<button class="edit" style="border:0;background:none;cursor:pointer" type="submit">Remove event</button></form>@endunless</div></div><div class="detail-grid">
             <div class="datum"><small>Organization</small><strong>{{ $event->organization ?: 'Not provided' }}</strong></div>
             <div class="datum"><small>Estimated attendance</small><strong>{{ $event->estimated_pax ? number_format($event->estimated_pax).' people' : 'Not provided' }}</strong></div>
             <div class="datum"><small>Time</small><strong>{{ $event->start_time ? \Carbon\Carbon::parse($event->start_time)->format('g:i A') : 'Not set' }}{{ $event->end_time ? ' – '.\Carbon\Carbon::parse($event->end_time)->format('g:i A') : '' }}</strong></div>
@@ -37,3 +37,4 @@
     </aside>
 </div>
 @endsection
+

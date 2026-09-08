@@ -221,6 +221,7 @@ class CoverageAndTeamTest extends TestCase
             'email' => 'joey@example.test',
             'role' => 'staff',
             'team' => User::TEAM_MARKETING,
+            'multimedia_specialty' => 'all',
             'is_active' => 1,
         ])->assertSessionHasErrors('role');
 
@@ -238,6 +239,7 @@ class CoverageAndTeamTest extends TestCase
             'email' => 'rico@example.test',
             'role' => 'staff',
             'team' => User::TEAM_MULTIMEDIA,
+            'multimedia_specialty' => 'all',
             'is_active' => 1,
             'password' => '',
         ])->assertRedirect('/admin/team');

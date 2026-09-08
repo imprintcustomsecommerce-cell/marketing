@@ -12,7 +12,7 @@ class Event extends Model
 {
     use LogsActivity;
 
-    protected $fillable = ['name', 'category', 'organization', 'contact_person', 'contact_number', 'contact_email', 'event_date', 'start_time', 'end_time', 'venue', 'group_chat_url', 'estimated_pax', 'status', 'notes', 'created_by', 'archived_at'];
+    protected $fillable = ['name', 'event_type', 'event_category', 'category', 'shooters_needed', 'photo_editors_needed', 'video_editors_needed', 'organization', 'contact_person', 'contact_number', 'contact_email', 'event_date', 'start_time', 'end_time', 'venue', 'group_chat_url', 'estimated_pax', 'status', 'notes', 'created_by', 'archived_at'];
 
     /** The three kinds of event the shop runs. */
     public const CATEGORIES = [
@@ -24,6 +24,31 @@ class Event extends Model
     public function categoryLabel(): string
     {
         return self::CATEGORIES[$this->category] ?? 'Uncategorised';
+    }
+
+    /** How the event is run — the field marketing actually picks on the form. */
+    public const EVENT_TYPES = [
+        'in_house' => 'IN-HOUSE',
+        'outside_event' => 'OUTSIDE EVENT',
+        'tambike' => 'TAMBIKE',
+    ];
+
+    /** What the event is about. */
+    public const EVENT_CATEGORIES = [
+        'motorcycle' => 'Motorcycle',
+        'automotive' => 'Automotive',
+        'car' => 'Car',
+        'others' => 'Others',
+    ];
+
+    public function eventTypeLabel(): string
+    {
+        return self::EVENT_TYPES[$this->event_type] ?? 'Unset';
+    }
+
+    public function eventCategoryLabel(): string
+    {
+        return self::EVENT_CATEGORIES[$this->event_category] ?? 'Uncategorised';
     }
 
     protected function casts(): array
@@ -56,3 +81,4 @@ class Event extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 }
+

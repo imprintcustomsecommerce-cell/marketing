@@ -30,6 +30,15 @@
         </select>
         <span class="muted small">Administrators see and manage everything, on either team.</span>
     </div>
+    <div>
+        <label for="multimedia_specialty">Multimedia assignment</label>
+        <select id="multimedia_specialty" name="multimedia_specialty" required>
+            @foreach(App\Models\User::MULTIMEDIA_SPECIALTIES as $value => $label)
+                <option value="{{ $value }}" @selected(old('multimedia_specialty', $user->multimedia_specialty ?: 'all') === $value)>{{ $label }}</option>
+            @endforeach
+        </select>
+        <span class="muted small">Controls which production tasks this crew member can take.</span>
+    </div>
 
     <div>
         <label for="password">{{ $user->exists ? 'New password' : 'Password' }}</label>

@@ -13,9 +13,17 @@ class Task extends Model
 {
     use LogsActivity;
 
-    protected $fillable = ['user_id', 'for_team', 'title', 'details', 'task_date', 'status', 'event_id', 'completed_at', 'claimed_at', 'created_by', 'archived_at'];
+    protected $fillable = ['user_id', 'for_team', 'crew_role', 'title', 'details', 'task_date', 'status', 'event_id', 'completed_at', 'claimed_at', 'created_by', 'archived_at'];
 
     public const STATUSES = ['todo' => 'To do', 'doing' => 'In progress', 'done' => 'Done'];
+
+    /** Which multimedia role a generated production task belongs to. */
+    public const CREW_ROLES = ['shooter' => 'Shooter task', 'photo' => 'Photo task', 'video' => 'Video task'];
+
+    public function crewRoleLabel(): string
+    {
+        return self::CREW_ROLES[$this->crew_role] ?? 'Task';
+    }
 
     protected function casts(): array
     {

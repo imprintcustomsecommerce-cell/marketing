@@ -4,7 +4,7 @@
 <div class="topline">
     <div>
         <h1>Coverage · {{ $event->name }}</h1>
-        <div class="muted small">{{ $event->event_date->format('M j, Y') }} · {{ $event->venue ?: 'Venue not set' }} · {{ $event->categoryLabel() }}</div>
+        <div class="muted small">{{ $event->event_date->format('M j, Y') }} · {{ $event->venue ?: 'Venue not set' }} · {{ $event->eventTypeLabel() }}</div>
     </div>
     <a class="edit" href="{{ route('admin.coverage.index') }}">Back to coverage</a>
 </div>

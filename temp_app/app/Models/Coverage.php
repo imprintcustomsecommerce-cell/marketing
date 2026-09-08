@@ -69,9 +69,41 @@ class Coverage extends Model
     public function revisions(): HasMany { return $this->hasMany(CoverageRevision::class)->orderByDesc('round'); }
 
     /** Waiting on the crew to pick it up. */
+    /** The three jobs on a coverage, and the column that records who took each. */
+    public const CREW_ROLES = [
+        'shooter' => ['field' => 'shooter_id', 'label' => 'Shooter'],
+        'photo' => ['field' => 'photo_editor_id', 'label' => 'Photo edit'],
+        'video' => ['field' => 'video_editor_id', 'label' => 'Video edit'],
+    ];
+
+    /**
+     * Roles nobody has taken yet, as role => label.
+     *
+     * Accepting claims one role, not the whole job, so the remaining roles have
+     * to stay offerable after the first person has answered.
+     *
+     * @return array<string,string>
+     */
+    public function openRoles(): array
+    {
+        $open = [];
+        foreach (self::CREW_ROLES as $role => $meta) {
+            if ($this->{$meta['field']} === null) {
+                $open[$role] = $meta['label'];
+            }
+        }
+
+        return $open;
+    }
+
     public function isRequested(): bool
     {
         return $this->stage === CoverageDesk::REQUESTED;
+    }
+
+    public function isAccepted(): bool
+    {
+        return $this->stage === CoverageDesk::ACCEPTED;
     }
 
     public function stageLabel(): string

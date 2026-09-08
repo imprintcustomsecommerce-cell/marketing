@@ -13,10 +13,15 @@ class CompleteWorkflowTest extends TestCase {
   $this->actingAs($admin)->post('/admin/inquiries/'.$inquiry->id.'/convert')->assertSessionHasNoErrors()->assertRedirect();
   $event=Event::findOrFail($inquiry->fresh()->converted_event_id);
   $this->assertSame('requested',$event->coverage->stage);
-  $this->assertCount(4,$event->tasks);
+  // Three shooting tasks plus one each for the photo and video editors.
+  $this->assertCount(5,$event->tasks);
   $this->assertTrue($event->tasks->every(fn($t)=>$t->for_team==='multimedia'));
   $this->actingAs($crew)->post('/admin/coverage/'.$event->id.'/respond',['answer'=>'accept'])->assertRedirect();
-  $this->assertTrue($event->fresh()->tasks->every(fn($t)=>$t->user_id===$crew->id));
+  // Accepting claims the tasks for the specialty taken on, not the whole plan:
+  // a shooter picks up the shoot and is named on the coverage, while the edit
+  // work stays in the queue for whoever takes the photo and video roles.
+  $this->assertSame($crew->id,$event->fresh()->coverage->shooter_id);
+  $this->assertSame($crew->id,$event->fresh()->tasks->firstWhere('title','Cover event')->user_id);
   $this->put('/admin/coverage/'.$event->id,['photo_status'=>'posted','video_status'=>'posted','photo_posted_on'=>today()->toDateString(),'video_posted_on'=>today()->toDateString(),'checklist'=>array_keys(Coverage::CHECKLIST),'delivery_url'=>'https://example.com/final'])->assertSessionHasNoErrors()->assertRedirect();
   $this->post('/admin/coverage/'.$event->id.'/confirm-delivery')->assertRedirect();
   $this->assertSame('completed',$event->fresh()->coverage->stage);

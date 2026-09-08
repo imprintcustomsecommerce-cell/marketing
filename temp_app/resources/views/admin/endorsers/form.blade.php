@@ -22,7 +22,8 @@
             <div class="span-2"><label for="name">Name <span class="required">*</span></label><input id="name" name="name" value="{{ old('name', $endorser->name) }}" placeholder="Full name or organization" required autofocus></div>
             <div><label for="type">Endorser type <span class="required">*</span></label><select id="type" name="type">@foreach(['individual','racer','team','influencer','organization'] as $type)<option value="{{ $type }}" @selected(old('type', $endorser->type ?: 'individual') === $type)>{{ str($type)->title() }}</option>@endforeach</select></div>
             <div><label for="status">Status <span class="required">*</span></label><select id="status" name="status">@foreach(['new','active','pending','inactive'] as $status)<option value="{{ $status }}" @selected(old('status', $endorser->status ?: 'new') === $status)>{{ str($status)->title() }}</option>@endforeach</select></div>
-            <div class="span-2"><label for="team_or_group">Team or group</label><input id="team_or_group" name="team_or_group" value="{{ old('team_or_group', $endorser->team_or_group) }}" placeholder="Affiliated team, club, or group"></div>
+            <div><label for="team_or_group">Team or group</label><input id="team_or_group" name="team_or_group" value="{{ old('team_or_group', $endorser->team_or_group) }}" placeholder="Affiliated team, club, or group"></div>
+            <div><label for="birthday">Birthday</label><input id="birthday" type="date" name="birthday" max="{{ today()->toDateString() }}" value="{{ old('birthday', optional($endorser->birthday)->format('Y-m-d')) }}"><span class="muted small">Used for the greeting reminder. Leave blank if you do not know it.</span></div>
             <div class="span-2"><label for="profile">Profile</label><textarea id="profile" name="profile" placeholder="Background, achievements, audience, or partnership context…">{{ old('profile', $endorser->profile) }}</textarea></div>
         </div>
     </section>

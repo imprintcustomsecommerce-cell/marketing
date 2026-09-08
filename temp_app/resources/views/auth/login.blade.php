@@ -77,13 +77,13 @@
 
         label{display:block;font-weight:600;margin:20px 0 7px;font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:#94a3b8}
         .field{position:relative}
-        .field svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#64748b;pointer-events:none}
-        input[type=email],input[type=password]{
+        .field > svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#64748b;pointer-events:none}
+        input[type=email],input[type=password],input[type=text]{
             width:100%;padding:13px 14px 13px 42px;border:1px solid #ffffff26;border-radius:13px;
             font:inherit;font-size:.95rem;background:#0b102099;color:#fff;transition:border-color .15s,box-shadow .15s;
         }
         input::placeholder{color:#64748b}
-        input[type=email]:focus,input[type=password]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px #f59e0b2e}
+        input[type=email]:focus,input[type=password]:focus,input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px #f59e0b2e}
         input:focus + svg{color:var(--accent)}
 
         .remember{display:flex;align-items:center;gap:9px;margin:18px 0 0;font-size:.88rem;color:#94a3b8;font-weight:500;letter-spacing:0;text-transform:none}
@@ -171,5 +171,6 @@
         <div class="box-foot">Internal use only</div>
     </form>
 </div>
+@include('partials.password-reveal')
 </body>
 </html>

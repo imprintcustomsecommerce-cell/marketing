@@ -20,7 +20,15 @@
         </div>
         <div class="form-grid">
             <div class="span-2"><label for="name">Event name <span class="required">*</span></label><input id="name" name="name" value="{{ old('name', $event->name) }}" placeholder="e.g. Tambike Night Ride" required autofocus></div>
-            <div><label for="category">Event type <span class="required">*</span></label><select id="category" name="category" required>@foreach(App\Models\Event::CATEGORIES as $value => $label)<option value="{{ $value }}" @selected(old('category', $event->category ?: 'tambike') === $value)>{{ $label }}</option>@endforeach</select></div>
+            @php
+                $eventTypes = ['in_house' => 'IN-HOUSE', 'outside_event' => 'OUTSIDE EVENT', 'tambike' => 'TAMBIKE'];
+                $eventCategories = ['motorcycle' => 'Motorcycle', 'automotive' => 'Automotive', 'car' => 'Car', 'others' => 'Others'];
+            @endphp
+            <div><label for="event_type">Event type</label><select id="event_type" name="event_type" required>@foreach($eventTypes as $value => $label)<option value="{{ $value }}" @selected(old('event_type', $event->event_type ?: 'tambike') === $value)>{{ $label }}</option>@endforeach</select></div>
+            <div><label for="event_category">Category</label><select id="event_category" name="event_category" required>@foreach($eventCategories as $value => $label)<option value="{{ $value }}" @selected(old('event_category', $event->event_category ?: 'others') === $value)>{{ $label }}</option>@endforeach</select></div>
+            {{-- Not on screen, but still posted on every save: carry the stored value
+                 through or editing an event silently retags it as a tambike. --}}
+            <input type="hidden" name="category" value="{{ old('category', $event->category ?: 'tambike') }}">
             <div><label for="status">Status <span class="required">*</span></label><select id="status" name="status" required>@foreach(['new','pending','confirmed','completed','cancelled'] as $status)<option value="{{ $status }}" @selected(old('status', $event->status ?: 'new') === $status)>{{ str($status)->title() }}</option>@endforeach</select></div>
             <div><label for="organization">Organization</label><input id="organization" name="organization" value="{{ old('organization', $event->organization) }}" placeholder="Client, club, or partner"></div>
             <div><label for="estimated_pax">Estimated attendance</label><input id="estimated_pax" type="number" min="1" name="estimated_pax" value="{{ old('estimated_pax', $event->estimated_pax) }}" placeholder="Expected guests"></div>
@@ -60,3 +68,7 @@
     </div>
 </form>
 @endsection
+
+
+
+

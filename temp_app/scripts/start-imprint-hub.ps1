@@ -50,6 +50,64 @@ if ($LASTEXITCODE -ne 0) { Stop-WithMessage 'The administrator account could not
 
 & php artisan optimize:clear | Out-Null
 
+# optimize:clear empties bootstrap\cache. Rebuild the package manifest here, in
+# one process, before the scheduler and the server start together below. Left
+# cold, both boot at once and race to rename() their temp file onto
+# packages.php; on Windows the loser dies with "Access is denied (code: 5)".
+& php artisan package:discover --ansi | Out-Null
+if ($LASTEXITCODE -ne 0) { Stop-WithMessage 'The package manifest could not be rebuilt.' }
+Get-ChildItem -LiteralPath 'bootstrap\cache' -Filter '*.tmp' -ErrorAction SilentlyContinue |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+
+$port = 8081
+
+# Like ImprintProduction's start-all.bat: one Laravel bound to 0.0.0.0 serves the
+# office network and the tunnel at the same time (0.0.0.0 covers 127.0.0.1, which
+# is what cloudflared points at).
+#
+# Prefer the adapter that owns a default gateway, so VirtualBox and host-only
+# adapters do not get handed out as the staff address.
+$lanIp = Get-NetIPConfiguration -ErrorAction SilentlyContinue |
+    Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq 'Up' } |
+    Select-Object -First 1 -ExpandProperty IPv4Address |
+    Select-Object -ExpandProperty IPAddress
+if (-not $lanIp) {
+    $lanIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' } |
+        Select-Object -First 1).IPAddress
+}
+
+# RequireInternalHost answers any host outside this list with a 404, so serving
+# the network is not enough on its own - the addresses staff actually type have
+# to be named here. Set as a real environment variable: Laravel's .env loader
+# leaves existing process variables alone, so .env needs no edit.
+# Macs and phones reach a Windows machine over Bonjour/mDNS, which appends
+# .local - "ic-server.local", never the bare "IC-SERVER" a Windows PC would use.
+# Both spellings have to be listed or half the office gets a 404.
+$hostNames = @('localhost', 'imprint-hub', $env:COMPUTERNAME) | Where-Object { $_ }
+$hostNames += $hostNames | ForEach-Object { "$_.local" }
+
+$internalHosts = @('127.0.0.1') + $hostNames +
+    @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' } |
+        Select-Object -ExpandProperty IPAddress)
+$env:INTERNAL_HOSTS = ($internalHosts | Where-Object { $_ } | Select-Object -Unique) -join ','
+
+# Needs administrator once. Without it Windows drops the connections silently and
+# the app looks unreachable from every other PC.
+$ruleName = "Imprint HUB LAN $port"
+& netsh advfirewall firewall show rule name="$ruleName" *> $null
+if ($LASTEXITCODE -ne 0) {
+    & netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=TCP localport=$port *> $null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[!] Could not open the firewall for port $port automatically." -ForegroundColor Yellow
+        Write-Host '    Right-click RUN_IMPRINT_HUB.bat and "Run as administrator" once,' -ForegroundColor Yellow
+        Write-Host '    otherwise other computers cannot connect.' -ForegroundColor Yellow
+    } else {
+        Write-Host "Firewall opened for port $port."
+    }
+}
+
 $tunnelLog = Join-Path $env:TEMP ("imprint-cloudflare-{0}.log" -f ([guid]::NewGuid().ToString('N')))
 $tunnelState = Join-Path $appPath 'storage\app\public-tunnel-url.txt'
 Remove-Item -LiteralPath $tunnelState -Force -ErrorAction SilentlyContinue
@@ -123,7 +181,12 @@ try {
 
     Write-Host ''
     Write-Host 'Imprint Hub is ready.' -ForegroundColor Green
-    Write-Host 'Admin login:  http://127.0.0.1:8081/login'
+    if ($lanIp) {
+        Write-Host "On the office network: http://${lanIp}:${port}/login"
+    } else {
+        Write-Host 'Network address could not be detected. Run ipconfig and use http://YOUR-IP:8081/login'
+    }
+    Write-Host 'This computer only:     http://127.0.0.1:8081/login'
     Write-Host "Client forms: $publicUrl/client"
     Write-Host ''
     Write-Host 'Default login on first run:'
@@ -136,7 +199,7 @@ try {
 
     $scheduler = Start-Process -FilePath 'php' -ArgumentList @('artisan', 'schedule:work') -WindowStyle Hidden -PassThru
     Start-Process 'http://127.0.0.1:8081/login'
-    & php artisan serve --host=127.0.0.1 --port=8081
+    & php artisan serve --host=0.0.0.0 --port=$port
     exit $LASTEXITCODE
 }
 finally {

@@ -82,23 +82,27 @@ class CoverageDesk
 
     private function createProductionTasks(Event $event, ?User $by): void
     {
+        // Photo and video are separate people on the coverage record, so the
+        // editing work is two tasks. One combined "event media" task left the
+        // second editor with nothing to take on.
         $schedule = [
-            ['Prepare brief and shot list', $event->event_date->copy()->subDays(3)],
-            ['Check gear and coverage plan', $event->event_date->copy()->subDay()],
-            ['Cover event', $event->event_date],
-            ['Edit and deliver event media', $event->event_date->copy()->addDays(3)],
+            ['Prepare brief and shot list', 'shooter', $event->event_date->copy()->subDays(3)],
+            ['Check gear and coverage plan', 'shooter', $event->event_date->copy()->subDay()],
+            ['Cover event', 'shooter', $event->event_date],
+            ['Edit and deliver event photos', 'photo', $event->event_date->copy()->addDays(2)],
+            ['Edit and deliver event videos', 'video', $event->event_date->copy()->addDays(4)],
         ];
 
-        foreach ($schedule as [$title, $date]) {
+        foreach ($schedule as [$title, $role, $date]) {
             Task::firstOrCreate(
                 ['event_id' => $event->id, 'title' => $title],
-                ['user_id' => null, 'for_team' => User::TEAM_MULTIMEDIA, 'details' => $event->name, 'task_date' => $date, 'status' => 'todo', 'created_by' => $by?->id],
+                ['user_id' => null, 'for_team' => User::TEAM_MULTIMEDIA, 'crew_role' => $role, 'details' => $event->name, 'task_date' => $date, 'status' => 'todo', 'created_by' => $by?->id],
             );
         }
     }
 
     /** The crew take the job on. A shooter can still be named later. */
-    public function accept(Coverage $coverage, User $by): Coverage
+    public function accept(Coverage $coverage, User $by, bool $assignTasks = true, ?string $specialty = null): Coverage
     {
         $coverage->update([
             'stage' => self::ACCEPTED,
@@ -106,12 +110,25 @@ class CoverageDesk
             'accepted_by' => $by->id,
         ]);
 
+        if ($assignTasks && in_array($specialty, ['shooter', 'photo', 'video'], true)) {
+            $coverage->update([$specialty === 'shooter' ? 'shooter_id' : ($specialty === 'photo' ? 'photo_editor_id' : 'video_editor_id') => $by->id]);
+        }
+
         // Accepting the coverage job also claims its generated production plan,
         // so it leaves Marketing's waiting queue and appears on the crew member's board.
-        Task::where('event_id', $coverage->event_id)
-            ->where('for_team', User::TEAM_MULTIMEDIA)
-            ->whereNull('user_id')
-            ->update(['user_id' => $by->id, 'claimed_at' => now()]);
+        if ($assignTasks) {
+            $tasks = Task::where('event_id', $coverage->event_id)
+                ->where('for_team', User::TEAM_MULTIMEDIA)
+                ->whereNull('user_id');
+
+            // Match on the recorded role. Tasks raised before roles existed
+            // carry none, and stay claimable so old events do not strand work.
+            if (in_array($specialty, ['shooter', 'photo', 'video'], true)) {
+                $tasks->where(fn ($q) => $q->where('crew_role', $specialty)->orWhereNull('crew_role'));
+            }
+
+            $tasks->update(['user_id' => $by->id, 'claimed_at' => now(), 'task_date' => today()]);
+        }
 
         return $coverage;
     }
