@@ -11,6 +11,7 @@ use App\Models\Task;
 use App\Support\CoverageDesk;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -150,6 +151,38 @@ class EventController extends Controller
         $redirect = redirect()->route('admin.events.index')->with('success', 'Event updated successfully. Unfinished production dates were synchronized.');
         if ($this->conflicts($event)->isNotEmpty()) $redirect->with('warning', 'Schedule warning: another event is already booked on this date.');
         return $redirect;
+    }
+
+    /**
+     * Delete the event outright.
+     *
+     * Archiving is the everyday "remove": it hides the event but keeps the
+     * record. This is the other one — for a booking entered by mistake or a
+     * duplicate, where leaving it archived only clutters the list.
+     *
+     * The database nulls the event out of tasks, kits, and obligations rather
+     * than deleting them, which would strand the generated production tasks on
+     * people's boards with nothing to open. Those are removed here, along with
+     * the uploaded files, which live on disk and no foreign key can reach.
+     */
+    public function destroy(Request $request, Event $event): RedirectResponse
+    {
+        $name = $event->name;
+
+        foreach ($event->files as $file) {
+            Storage::disk('local')->delete($file->path);
+        }
+
+        // Public links point at a resource id with no foreign key behind it, so
+        // without this a shared link would outlive the event it was made for.
+        $event->publicLinks()->delete();
+        $event->tasks()->delete();
+
+        // Coverage and event files go with it through the schema's cascade.
+        $event->delete();
+
+        return redirect()->route('admin.events.index')
+            ->with('success', "\"{$name}\" and everything filed under it were deleted.");
     }
 
     private function conflicts(Event $event)

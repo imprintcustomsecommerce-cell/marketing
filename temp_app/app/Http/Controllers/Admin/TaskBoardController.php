@@ -58,6 +58,11 @@ class TaskBoardController extends Controller
             'people' => $request->user()->isAdmin()
                 ? User::where('is_active', true)->orderBy('team')->orderBy('name')->get()
                 : collect(),
+            // Named crew, so marketing can hand work straight to a person
+            // instead of only dropping it in the shared queue.
+            'crew' => $request->user()->canSeeMarketing()
+                ? User::where('is_active', true)->where('team', User::TEAM_MULTIMEDIA)->orderBy('name')->pluck('name', 'id')
+                : collect(),
             'submission' => TaskSubmission::where('user_id', $owner->id)->whereDate('task_date', $date)->first(),
             'pendingReviews' => $request->user()->isAdmin()
                 ? TaskSubmission::with('user')->whereNull('reviewed_at')->orderBy('submitted_at')->get()
@@ -68,6 +73,17 @@ class TaskBoardController extends Controller
             // or claim the crew's unassigned production work.
             'teamQueue' => $request->user()->team === User::TEAM_MULTIMEDIA
                 ? Task::with(['event', 'raisedBy'])->unclaimedFor(User::TEAM_MULTIMEDIA)->orderBy('id')->get()
+                : collect(),
+            // Marketing never sees the crew's queue, so without this they have no
+            // screen showing the work they handed over — and no way to take back
+            // something raised by mistake once somebody has taken it on.
+            'raisedByMe' => $request->user()->canSeeMarketing()
+                ? Task::with(['event', 'user'])
+                    ->where('created_by', $request->user()->id)
+                    ->whereNotNull('for_team')
+                    ->where('status', '!=', 'done')
+                    ->orderBy('task_date')
+                    ->get()
                 : collect(),
             'carriedOver' => Task::where('user_id', $owner->id)
                 ->whereDate('task_date', '<', $date)
@@ -86,7 +102,11 @@ class TaskBoardController extends Controller
             'task_date' => ['required', 'date'],
             'event_id' => ['nullable', 'exists:events,id'],
             'for_team' => ['nullable', Rule::in([User::TEAM_MULTIMEDIA, 'personal'])],
+            'assign_to' => ['nullable', 'exists:users,id'],
         ]);
+
+        $assignTo = $validated['assign_to'] ?? null;
+        unset($validated['assign_to']);
 
         // Marketing work is production work by default, so it reaches
         // Multimedia without relying on somebody to choose the queue manually.
@@ -99,6 +119,17 @@ class TaskBoardController extends Controller
             // Only marketing hands work to the crew, and the crew are not
             // handed a person — the task waits until one of them takes it.
             abort_unless($request->user()->canSeeMarketing(), 403);
+
+            // Naming someone puts it straight on their board. Left blank, it
+            // waits in the queue for whoever picks it up first, as before.
+            if ($assignTo !== null) {
+                $person = User::findOrFail($assignTo);
+                abort_unless($person->team === User::TEAM_MULTIMEDIA && $person->is_active, 422);
+
+                $desk->assignTo($person, $validated, $request->user());
+
+                return back()->with('success', "Assigned to {$person->name}.");
+            }
 
             $desk->raiseFor($team, $validated, $request->user());
 
@@ -177,7 +208,14 @@ class TaskBoardController extends Controller
 
     public function destroy(Request $request, Task $task): RedirectResponse
     {
-        $this->authoriseTask($request, $task);
+        $user = $request->user();
+
+        // Wider than authoriseTask on purpose: whoever raised a task can take it
+        // back even after the crew have taken it on. Cancelling the work is
+        // marketing's call, and leaving them to ask someone else to delete it
+        // was the slower, worse version of the same thing.
+        abort_unless($user->isAdmin() || $task->user_id === $user->id || $task->created_by === $user->id, 403);
+
         $task->delete();
 
         return back()->with('success', 'Task removed.');

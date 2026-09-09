@@ -263,7 +263,12 @@ class TaskHandoffTest extends TestCase
         $this->assertSame(0, Task::count());
     }
 
-    public function test_the_raiser_cannot_touch_it_once_the_crew_have_taken_it(): void
+    /**
+     * Cancelling the work is still marketing's call after the crew have taken it
+     * on, so the raiser can withdraw it. Rewording or re-queueing someone's live
+     * work is not: that stays with them.
+     */
+    public function test_the_raiser_can_withdraw_it_but_not_reword_it_once_taken(): void
     {
         $marketing = $this->marketing();
         $this->actingAs($marketing)->post('/admin/tasks', $this->taskFields());
@@ -271,8 +276,11 @@ class TaskHandoffTest extends TestCase
 
         $this->actingAs($this->crew())->post("/admin/tasks/{$task->id}/claim");
 
-        $this->actingAs($marketing)->delete("/admin/tasks/{$task->id}")->assertForbidden();
+        $this->actingAs($marketing)->put("/admin/tasks/{$task->id}", ['title' => 'Renamed'])->assertForbidden();
+        $this->actingAs($marketing)->post("/admin/tasks/{$task->id}/release")->assertForbidden();
+        $this->assertSame('Cut a teaser for the expo', $task->fresh()->title);
 
-        $this->assertSame(1, Task::count());
+        $this->actingAs($marketing)->delete("/admin/tasks/{$task->id}")->assertRedirect();
+        $this->assertSame(0, Task::count());
     }
 }

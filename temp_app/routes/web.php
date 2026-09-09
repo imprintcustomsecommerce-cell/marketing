@@ -40,7 +40,17 @@ Route::middleware('internal.host')->group(function (): void {
             Route::patch('/events/{event}/archive', [EventController::class, 'archive'])->name('events.archive');
             Route::patch('/events/{event}/restore', [EventController::class, 'restore'])->name('events.restore');
             Route::post('/events/{event}/request-coverage', [EventController::class, 'requestCoverage'])->name('events.request-coverage');
+            // Deleting an event takes its coverage, production tasks, and
+            // uploaded files with it and cannot be undone, so it is the
+            // administrator's call. Archiving stays open to all of marketing.
+            Route::delete('/events/{event}', [EventController::class, 'destroy'])
+                ->middleware('admin.only')->name('events.destroy');
             Route::resource('endorsers', EndorserController::class)->except(['show', 'destroy']);
+            // Deleting takes their PR kits and content obligations with it, so
+            // it is the administrator's call. Marking someone inactive is the
+            // everyday way to take them off the working roster.
+            Route::delete('/endorsers/{endorser}', [EndorserController::class, 'destroy'])
+                ->middleware('admin.only')->name('endorsers.destroy');
             Route::resource('pr-kits', PrKitController::class)->except(['show', 'destroy'])->parameters(['pr-kits' => 'prKit']);
             Route::resource('obligations', ObligationController::class)->except(['show', 'destroy']);
             Route::patch('/obligations/{obligation}/status', [ObligationController::class, 'status'])->name('obligations.status');

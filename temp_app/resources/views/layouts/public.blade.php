@@ -131,6 +131,7 @@
             <a href="{{ route('client.function-hall') }}" @if(request()->routeIs('client.function-hall')) aria-current="page" @endif>Function Hall</a>
             <a href="{{ route('client.tambike') }}" @if(request()->routeIs('client.tambike')) aria-current="page" @endif>Tambike</a>
             <a href="{{ route('client.sponsorship') }}" @if(request()->routeIs('client.sponsorship')) aria-current="page" @endif>Sponsorship</a>
+            <a href="{{ route('client.external-event') }}" @if(request()->routeIs('client.external-event')) aria-current="page" @endif>Event Sponsorship</a>
             <a href="{{ route('client.inquiry') }}" @if(request()->routeIs('client.inquiry')) aria-current="page" @endif>General</a>
             <a href="{{ route('client.track') }}" @if(request()->routeIs('client.track*')) aria-current="page" @endif>Track</a>
         </nav>

@@ -235,6 +235,48 @@
     $canHandOver = auth()->user()->canSeeMarketing();
 @endphp
 
+@if($raisedByMe->isNotEmpty())
+    {{-- The other side of the hand-off. The crew get "From marketing"; this is
+         marketing's view of the same work, and the only place they can call it
+         back once somebody has taken it on. --}}
+    <div class="card queue">
+        <div class="queue-head">
+            <span class="queue-mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16v12H7l-3 3z"/><path d="M8 9h8M8 12.5h5"/></svg>
+            </span>
+            <div>
+                <h2>Work you sent to multimedia</h2>
+                <div class="queue-sub">Still open. Remove anything raised by mistake.</div>
+            </div>
+            <span class="queue-count">{{ $raisedByMe->count() }} open</span>
+        </div>
+
+        <div class="queue-list">
+            @foreach($raisedByMe as $sent)
+                <div class="queue-item">
+                    <div class="queue-text">
+                        <div class="queue-title">{{ $sent->title }}</div>
+                        <div class="queue-meta">
+                            @if($sent->user)
+                                Taken on by {{ $sent->user->name }}
+                            @else
+                                Waiting for someone to take it
+                            @endif
+                            · due {{ $sent->task_date->format('M j') }}
+                            @if($sent->event) · {{ $sent->event->name }} @endif
+                        </div>
+                    </div>
+                    <form method="post" action="{{ route('admin.tasks.destroy', $sent) }}"
+                          onsubmit="return confirm('Remove &quot;{{ addslashes($sent->title) }}&quot;?{{ $sent->user ? ' '.addslashes($sent->user->name).' has already taken this on.' : '' }}')">
+                        @csrf @method('delete')
+                        <button class="take" type="submit" style="color:#b91c1c">Remove</button>
+                    </form>
+                </div>
+            @endforeach
+        </div>
+    </div>
+@endif
+
 @if($teamQueue->isNotEmpty())
     <div class="card queue">
         <div class="queue-head">
@@ -299,6 +341,20 @@
                     <option value="personal">Personal board</option>
                 </select>
             </div>
+            @if($crew->isNotEmpty())
+                {{-- Left on "Anyone" the task waits in the queue, which is the
+                     usual way round. Naming someone is for work that only one
+                     person can do. Ignored when the task is a personal one. --}}
+                <div data-show-when="for_team" data-show-value="{{ $multimediaTeam }}">
+                    <label for="assign_to">Assign to</label>
+                    <select id="assign_to" name="assign_to">
+                        <option value="">Anyone on the crew</option>
+                        @foreach($crew as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
         @endif
         <div><button class="button" type="submit">Add task</button></div>
     </form>
@@ -441,6 +497,25 @@
         button.addEventListener('click', function () {
             document.getElementById('edit-' + button.dataset.cancel).hidden = true;
         });
+    });
+
+    // "Assign to" only means anything for crew work, so it follows the queue
+    // choice. Disabled rather than merely hidden, so a stale pick cannot be
+    // posted with a personal task.
+    document.querySelectorAll('[data-show-when]').forEach(function (section) {
+        var controller = document.querySelector('[name="' + section.dataset.showWhen + '"]');
+        if (! controller) return;
+
+        function sync() {
+            var visible = controller.value === section.dataset.showValue;
+            section.hidden = ! visible;
+            section.querySelectorAll('select, input').forEach(function (field) {
+                field.disabled = ! visible;
+            });
+        }
+
+        controller.addEventListener('change', sync);
+        sync();
     });
 </script>
 @endsection

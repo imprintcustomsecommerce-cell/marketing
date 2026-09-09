@@ -27,7 +27,7 @@
         <span>Booth setup, raffle prizes, and marketing support for your ride or rally.</span>
     </a>
     <a class="tile" href="{{ route('client.sponsorship', [], false) }}">
-        <strong>Rider &amp; team sponsorship</strong>
+        <strong>Racer/team sponsorship</strong>
         <span>Race under the Imprint Customs banner. Open to individual racers and teams.</span>
     </a>
     <a class="tile" href="{{ route('client.external-event', [], false) }}">

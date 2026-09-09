@@ -14,7 +14,16 @@
 
 <div class="event-grid">
     <div>
-        <section class="card"><div class="topline" style="margin-bottom:14px"><h2>Event details</h2><div style="display:flex;gap:10px;align-items:center"><a class="edit" href="{{ route('admin.calendar', ['date' => $event->event_date->toDateString()]) }}">Open calendar</a>@unless($event->archived_at)<form method="post" action="{{ route('admin.events.archive', $event) }}">@csrf @method('patch')<button class="edit" style="border:0;background:none;cursor:pointer" type="submit">Remove event</button></form>@endunless</div></div><div class="detail-grid">
+        <section class="card"><div class="topline" style="margin-bottom:14px"><h2>Event details</h2><div style="display:flex;gap:10px;align-items:center"><a class="edit" href="{{ route('admin.calendar', ['date' => $event->event_date->toDateString()]) }}">Open calendar</a>@unless($event->archived_at)<form method="post" action="{{ route('admin.events.archive', $event) }}">@csrf @method('patch')<button class="edit" style="border:0;background:none;cursor:pointer" type="submit">Archive event</button></form>@endunless
+            @if(auth()->user()->isAdmin())
+                <form method="post" action="{{ route('admin.events.destroy', $event) }}"
+                      onsubmit="return confirm('Delete &quot;{{ addslashes($event->name) }}&quot; for good?
+
+Its coverage, production tasks, and uploaded files go with it. This cannot be undone. Archive it instead if you only want it out of the way.')">
+                    @csrf @method('delete')
+                    <button class="edit" style="border:0;background:none;cursor:pointer;color:#b91c1c" type="submit">Delete permanently</button>
+                </form>
+            @endif</div></div><div class="detail-grid">
             <div class="datum"><small>Organization</small><strong>{{ $event->organization ?: 'Not provided' }}</strong></div>
             <div class="datum"><small>Estimated attendance</small><strong>{{ $event->estimated_pax ? number_format($event->estimated_pax).' people' : 'Not provided' }}</strong></div>
             <div class="datum"><small>Time</small><strong>{{ $event->start_time ? \Carbon\Carbon::parse($event->start_time)->format('g:i A') : 'Not set' }}{{ $event->end_time ? ' – '.\Carbon\Carbon::parse($event->end_time)->format('g:i A') : '' }}</strong></div>

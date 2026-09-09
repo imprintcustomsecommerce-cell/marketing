@@ -28,6 +28,24 @@ class TaskDesk
     }
 
     /**
+     * Hand the task to a named person rather than the shared queue.
+     *
+     * It is claimed on arrival — nobody has to take it on, because it was given
+     * to them — but `for_team` is kept so the board still shows where it came
+     * from and "Put back" can return it to the queue.
+     */
+    public function assignTo(User $person, array $fields, User $by): Task
+    {
+        return Task::create($fields + [
+            'user_id' => $person->id,
+            'for_team' => $person->team,
+            'claimed_at' => now(),
+            'status' => 'todo',
+            'created_by' => $by->id,
+        ]);
+    }
+
+    /**
      * Someone on the team takes the task onto their own board.
      *
      * It lands on the day they claim it, not the day it was raised: a request

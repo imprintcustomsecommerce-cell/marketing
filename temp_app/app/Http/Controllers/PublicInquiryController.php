@@ -29,7 +29,7 @@ class PublicInquiryController extends Controller
             'fields' => ['event_name', 'group_name', 'contact_person', 'contact_number', 'email', 'date', 'start_time', 'estimated_pax', 'existing_client', 'relationship_type', 'relationship_period', 'previous_campaign', 'previous_contact', 'need_booth', 'booth_requirements', 'need_raffle', 'raffle_requirements', 'need_marketing_support', 'marketing_support_details', 'notes'],
         ],
         'sponsorship' => [
-            'title' => 'Rider and Team Sponsorship',
+            'title' => 'Racer/Team Sponsorship',
             'lede' => 'Racing under the Imprint Customs banner starts here. Tell us who you are, what you ride, and what you have won.',
             'points' => ['Open to individual racers and full teams', 'Attach your race results, photos, and rate card', 'Every application is reviewed by our marketing team'],
             'cta' => 'Submit application',
@@ -87,7 +87,7 @@ class PublicInquiryController extends Controller
         'team' => 'Current team',
         'motorcycle' => 'Motorcycle (make, model, displacement)',
         'racing_category' => 'Racing category',
-        'profile' => 'Rider or team profile',
+        'profile' => 'Racer or team profile',
         'achievements' => 'Race achievements',
         'social_media_urls' => 'Social media links',
         'requested_sponsorship' => 'What sponsorship are you requesting?',

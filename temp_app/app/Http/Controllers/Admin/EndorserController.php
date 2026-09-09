@@ -85,6 +85,24 @@ class EndorserController extends Controller
         return redirect()->route('admin.endorsers.index')->with('success', 'Endorser updated successfully.');
     }
 
+    /**
+     * Delete the endorser outright.
+     *
+     * Setting them inactive is the everyday "remove" and keeps the history. This
+     * is for a duplicate or a record entered by mistake. Their obligations go
+     * through the schema's cascade; the PR kits would only have their recipient
+     * nulled, leaving a shipment addressed to nobody, so those go here.
+     */
+    public function destroy(Endorser $endorser): RedirectResponse
+    {
+        $name = $endorser->name;
+        $endorser->prKits()->delete();
+        $endorser->delete();
+
+        return redirect()->route('admin.endorsers.index')
+            ->with('success', "\"{$name}\" and everything filed under them were deleted.");
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([
