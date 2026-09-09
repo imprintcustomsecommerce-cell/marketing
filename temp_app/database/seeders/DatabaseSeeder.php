@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -30,7 +29,6 @@ class DatabaseSeeder extends Seeder
             ],
         );
         $admin->update(['name' => env('ADMIN_NAME', $admin->name), 'role' => 'admin', 'team' => User::TEAM_MARKETING, 'is_active' => true]);
-        if (Hash::check(env('ADMIN_PASSWORD', 'imprint123'), $admin->password)) $admin->update(['must_change_password' => true]);
 
         $placeholders = [
             [User::TEAM_MARKETING, 'Marketing 2', 'marketing2@imprintcustoms.ph'],
@@ -44,7 +42,10 @@ class DatabaseSeeder extends Seeder
 
         foreach ($placeholders as [$team, $name, $email]) {
             // firstOrCreate, not updateOrCreate: once these are renamed to real
-            // people, re-running the seeder must not rename them back.
+            // people, re-running the seeder must not rename them back. The same
+            // goes for must_change_password — it is set when the account is
+            // created and never re-applied, so an administrator who lifts it for
+            // somebody does not find it back on them at the next launch.
             $person = User::firstOrCreate(
                 ['email' => $email],
                 [
@@ -56,7 +57,6 @@ class DatabaseSeeder extends Seeder
                     'must_change_password' => true,
                 ],
             );
-            if (Hash::check(env('STAFF_PASSWORD', 'imprint123'), $person->password)) $person->update(['must_change_password' => true]);
         }
     }
 }
