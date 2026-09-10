@@ -28,6 +28,21 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    /*
+     * The shop's own Shopify store, for pushing the website events calendar.
+     *
+     * A Dev Dashboard app authenticates with its client id and secret rather
+     * than a stored token: Shopify hands out a token that lasts a day, so the
+     * credentials below are exchanged for one as needed.
+     */
+    'shopify' => [
+        'domain' => env('SHOPIFY_STORE_DOMAIN'),
+        'client_id' => env('SHOPIFY_CLIENT_ID'),
+        'client_secret' => env('SHOPIFY_CLIENT_SECRET'),
+        'api_version' => env('SHOPIFY_API_VERSION', '2026-07'),
+        'event_metaobject_type' => env('SHOPIFY_EVENT_METAOBJECT_TYPE', 'event'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
