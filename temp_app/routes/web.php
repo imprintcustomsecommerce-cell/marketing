@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\SearchController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\PublicCalendarController;
 use App\Http\Controllers\PublicEventController;
 use App\Http\Controllers\PublicInquiryController;
 use Illuminate\Support\Facades\Route;
@@ -126,6 +127,10 @@ Route::middleware('internal.host')->group(function (): void {
 
 Route::prefix('client')->middleware(['public.host', 'throttle:30,1'])->group(function (): void {
     Route::get('/', fn () => view('public.home'))->name('client.home');
+    // Read by the website's calendar, not by a person, so it sits with the rest
+    // of the public portal but returns JSON rather than a page.
+    Route::get('/calendar.json', PublicCalendarController::class)->name('client.calendar');
+
     Route::get('/track', [PublicInquiryController::class, 'track'])->name('client.track');
     Route::post('/track', [PublicInquiryController::class, 'lookup'])->middleware('throttle:10,1')->name('client.track.lookup');
 

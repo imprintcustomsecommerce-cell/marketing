@@ -293,11 +293,17 @@ class EventController extends Controller
             'group_chat_url' => ['nullable', 'url', 'max:500'],
             'estimated_pax' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'status' => ['required', Rule::in(['new', 'pending', 'confirmed', 'completed', 'cancelled'])],
+            'is_public' => ['nullable', 'boolean'],
+            'public_summary' => ['nullable', 'string', 'max:600'],
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
 
         // Unticking every box posts nothing at all, so an absent list has to
         // mean "none ticked" rather than "leave the old ones alone".
+        // An unticked checkbox posts nothing, so absence has to mean "not on the
+        // website" rather than leaving whatever was there before.
+        $validated['is_public'] = (bool) ($validated['is_public'] ?? false);
+
         $validated['preparation'] = array_values($validated['preparation'] ?? []);
 
         // Rows are added in the browser, so a blank one is somebody clicking

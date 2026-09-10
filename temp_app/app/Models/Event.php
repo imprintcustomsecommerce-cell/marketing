@@ -12,7 +12,7 @@ class Event extends Model
 {
     use LogsActivity;
 
-    protected $fillable = ['name', 'event_type', 'event_category', 'category', 'shooters_needed', 'photo_editors_needed', 'video_editors_needed', 'organization', 'contact_person', 'contact_number', 'contact_email', 'event_date', 'start_time', 'end_time', 'venue', 'booth_size', 'venue_type', 'group_chat_url', 'estimated_pax', 'deal_type', 'cash_amount', 'ingress_date', 'egress_date', 'duration_days', 'status', 'notes', 'preparation', 'preparation_done', 'custom_preparation', 'created_by', 'archived_at'];
+    protected $fillable = ['name', 'event_type', 'event_category', 'category', 'shooters_needed', 'photo_editors_needed', 'video_editors_needed', 'organization', 'contact_person', 'contact_number', 'contact_email', 'event_date', 'start_time', 'end_time', 'venue', 'booth_size', 'venue_type', 'group_chat_url', 'estimated_pax', 'deal_type', 'cash_amount', 'ingress_date', 'egress_date', 'duration_days', 'status', 'is_public', 'public_summary', 'notes', 'preparation', 'preparation_done', 'custom_preparation', 'created_by', 'archived_at'];
 
     /** The three kinds of event the shop runs. */
     public const CATEGORIES = [
@@ -24,6 +24,46 @@ class Event extends Model
     public function categoryLabel(): string
     {
         return self::CATEGORIES[$this->category] ?? 'Uncategorised';
+    }
+
+    /**
+     * Events fit to show on the website calendar.
+     *
+     * Three conditions, all of them deliberate: somebody ticked it, it has not
+     * been archived, and it is not cancelled — a cancelled date left on a public
+     * calendar sends customers to a closed venue.
+     */
+    public function scopePubliclyListed($query)
+    {
+        return $query->where('is_public', true)
+            ->whereNull('archived_at')
+            ->where('status', '!=', 'cancelled');
+    }
+
+    /**
+     * The event as the website sees it.
+     *
+     * A whitelist, not a filter: everything customers get is named here, so a
+     * column added later cannot quietly find its way onto the storefront.
+     *
+     * @return array<string,mixed>
+     */
+    public function toPublicCalendarEntry(): array
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->name,
+            'date' => $this->event_date->toDateString(),
+            'end_date' => $this->duration_days > 1
+                ? $this->event_date->copy()->addDays($this->duration_days - 1)->toDateString()
+                : $this->event_date->toDateString(),
+            'start_time' => $this->start_time,
+            'end_time' => $this->end_time,
+            'venue' => $this->venue,
+            'type' => $this->event_type,
+            'type_label' => $this->eventTypeLabel(),
+            'summary' => $this->public_summary,
+        ];
     }
 
     public const VENUE_TYPES = ['indoor' => 'Indoor', 'outdoor' => 'Outdoor', 'both' => 'Indoor and outdoor'];
@@ -147,7 +187,7 @@ class Event extends Model
     {
         return [
             'event_date' => 'date', 'ingress_date' => 'date', 'egress_date' => 'date',
-            'archived_at' => 'datetime', 'preparation' => 'array', 'preparation_done' => 'array', 'custom_preparation' => 'array',
+            'archived_at' => 'datetime', 'is_public' => 'boolean', 'preparation' => 'array', 'preparation_done' => 'array', 'custom_preparation' => 'array',
             'cash_amount' => 'decimal:2',
         ];
     }

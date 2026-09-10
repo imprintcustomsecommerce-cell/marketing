@@ -115,6 +115,17 @@
             <span><h2>Coordination</h2><p>Keep the working conversation and internal context attached to the event.</p></span>
         </div>
         <div class="form-grid">
+            <div class="span-2">
+                <label class="publish-toggle">
+                    <input type="hidden" name="is_public" value="0">
+                    <input type="checkbox" name="is_public" value="1" @checked(old('is_public', $event->is_public))>
+                    <span>
+                        <strong>Show on the website calendar</strong>
+                        <span class="field-help">Customers see the name, date, time, venue, and the blurb below. Contact details, notes, terms, and the checklist never leave the Hub.</span>
+                    </span>
+                </label>
+            </div>
+            <div class="span-2"><label for="public_summary">Website blurb</label><textarea id="public_summary" name="public_summary" maxlength="600" placeholder="A line or two for customers reading the website…">{{ old('public_summary', $event->public_summary) }}</textarea><span class="field-help">Optional. Shown under the event on the website.</span></div>
             <div class="span-2"><label for="group_chat_url">Group chat link</label><input id="group_chat_url" type="url" name="group_chat_url" value="{{ old('group_chat_url', $event->group_chat_url) }}" placeholder="https://m.me/j/..."><span class="field-help">Messenger, Viber, or WhatsApp coordination thread.</span></div>
             <div class="span-2"><label for="notes">Internal notes</label><textarea id="notes" name="notes" placeholder="Requirements, reminders, or important context…">{{ old('notes', $event->notes) }}</textarea></div>
         </div>
@@ -167,6 +178,11 @@
     .prep-item:hover{border-color:var(--accent)}
     .prep-item input{width:16px;height:16px;min-height:0;flex:none;accent-color:var(--accent);margin:0}
     .prep-item span{line-height:1.3}
+    .publish-toggle{display:flex;align-items:flex-start;gap:11px;padding:13px 15px;border:1px solid var(--line);
+        border-radius:var(--radius);background:#fff;cursor:pointer}
+    .publish-toggle:hover{border-color:var(--accent)}
+    .publish-toggle input{width:17px;height:17px;min-height:0;flex:none;margin:2px 0 0;accent-color:var(--accent)}
+    .publish-toggle .field-help{margin-top:3px}
     .danger-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
         margin-top:20px;padding:16px 18px;border:1px solid #fecaca;border-radius:var(--radius);background:#fef2f2}
     .danger-actions{display:flex;gap:9px;flex-wrap:wrap}
