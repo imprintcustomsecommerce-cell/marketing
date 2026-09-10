@@ -9,6 +9,8 @@
     <a class="edit" href="{{ route('admin.coverage.index') }}">Back to coverage</a>
 </div>
 
+@include('admin.events.preparation-panel', ['event' => $event])
+
 <section class="card" style="margin-bottom:18px">
     <div class="topline" style="margin-bottom:12px"><div><h2>Event-day contact</h2><div class="muted small">Everything the crew needs while on location</div></div>@if($event->group_chat_url)<a class="button ghost" href="{{ $event->group_chat_url }}" target="_blank" rel="noopener noreferrer">Open group chat</a>@endif</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">

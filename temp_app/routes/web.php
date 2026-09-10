@@ -68,6 +68,12 @@ Route::middleware('internal.host')->group(function (): void {
             Route::get('/inquiries/{inquiry}/files/{index}', [InquiryController::class, 'download'])->whereNumber('index')->name('inquiries.download');
         });
 
+        // Ticking the pre-event checklist is deliberately outside the marketing
+        // group: the crew loading the van are as likely to be the ones marking
+        // an item done, and they cannot open the event screen itself.
+        Route::patch('/events/{event}/preparation', [EventController::class, 'preparation'])
+            ->name('events.preparation');
+
         // Everyone gets their own board and their own account settings.
         Route::get('/tasks', [TaskBoardController::class, 'index'])->name('tasks.index');
         Route::post('/tasks', [TaskBoardController::class, 'store'])->name('tasks.store');

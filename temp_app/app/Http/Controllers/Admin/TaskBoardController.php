@@ -53,26 +53,42 @@ class TaskBoardController extends Controller
             'week' => $week,
             'previous' => $date->subDay()->toDateString(),
             'next' => $date->addDay()->toDateString(),
-            'events' => Event::whereDate('event_date', '>=', today()->subMonth())->orderBy('event_date')->pluck('name', 'id'),
+            // Archived events are off the books, so they are not work to attach a
+            // task to. Dated so the list stays short rather than every event ever.
+            'events' => Event::whereNull('archived_at')
+                ->whereDate('event_date', '>=', today()->subMonth())
+                ->orderBy('event_date')
+                ->pluck('name', 'id'),
             // Only the administrator gets the person switcher.
             'people' => $request->user()->isAdmin()
                 ? User::where('is_active', true)->orderBy('team')->orderBy('name')->get()
-                : collect(),
-            // Named crew, so marketing can hand work straight to a person
-            // instead of only dropping it in the shared queue.
-            'crew' => $request->user()->canSeeMarketing()
-                ? User::where('is_active', true)->where('team', User::TEAM_MULTIMEDIA)->orderBy('name')->pluck('name', 'id')
                 : collect(),
             'submission' => TaskSubmission::where('user_id', $owner->id)->whereDate('task_date', $date)->first(),
             'pendingReviews' => $request->user()->isAdmin()
                 ? TaskSubmission::with('user')->whereNull('reviewed_at')->orderBy('submitted_at')->get()
                 : collect(),
             'multimediaTeam' => User::TEAM_MULTIMEDIA,
-            // This is the Multimedia team's intake queue. Administrators can
-            // manage the system, but a Marketing administrator should not see
-            // or claim the crew's unassigned production work.
-            'teamQueue' => $request->user()->team === User::TEAM_MULTIMEDIA
-                ? Task::with(['event', 'raisedBy'])->unclaimedFor(User::TEAM_MULTIMEDIA)->orderBy('id')->get()
+            'marketingTeam' => User::TEAM_MARKETING,
+
+            // Everyone on the team sees work waiting for it, and only their own
+            // team's: a marketing administrator has no business claiming the
+            // crew's unassigned production work.
+            'teamQueue' => Task::with(['event', 'raisedBy'])
+                ->unclaimedFor($request->user()->team)
+                ->orderBy('id')
+                ->get(),
+            'teamQueueLabel' => $request->user()->team === User::TEAM_MULTIMEDIA
+                ? 'From marketing'
+                : 'For the marketing team',
+
+            // Who a task can be handed to directly. Both teams take work, so the
+            // list follows the queue picked rather than always being the crew.
+            'crew' => $request->user()->canSeeMarketing()
+                ? User::where('is_active', true)->where('team', User::TEAM_MULTIMEDIA)->orderBy('name')->pluck('name', 'id')
+                : collect(),
+            'marketingPeople' => $request->user()->canSeeMarketing()
+                ? User::where('is_active', true)->where('team', User::TEAM_MARKETING)
+                    ->whereKeyNot($request->user()->id)->orderBy('name')->pluck('name', 'id')
                 : collect(),
             // Marketing never sees the crew's queue, so without this they have no
             // screen showing the work they handed over — and no way to take back
@@ -101,7 +117,7 @@ class TaskBoardController extends Controller
             'details' => ['nullable', 'string', 'max:2000'],
             'task_date' => ['required', 'date'],
             'event_id' => ['nullable', 'exists:events,id'],
-            'for_team' => ['nullable', Rule::in([User::TEAM_MULTIMEDIA, 'personal'])],
+            'for_team' => ['nullable', Rule::in([User::TEAM_MULTIMEDIA, User::TEAM_MARKETING, 'personal'])],
             'assign_to' => ['nullable', 'exists:users,id'],
         ]);
 
@@ -124,7 +140,7 @@ class TaskBoardController extends Controller
             // waits in the queue for whoever picks it up first, as before.
             if ($assignTo !== null) {
                 $person = User::findOrFail($assignTo);
-                abort_unless($person->team === User::TEAM_MULTIMEDIA && $person->is_active, 422);
+                abort_unless($person->team === $team && $person->is_active, 422);
 
                 $desk->assignTo($person, $validated, $request->user());
 
@@ -133,7 +149,9 @@ class TaskBoardController extends Controller
 
             $desk->raiseFor($team, $validated, $request->user());
 
-            return back()->with('success', 'Sent to the multimedia queue.');
+            return back()->with('success', $team === User::TEAM_MARKETING
+                ? 'Sent to the marketing queue.'
+                : 'Sent to the multimedia queue.');
         }
 
         Task::create($validated + [

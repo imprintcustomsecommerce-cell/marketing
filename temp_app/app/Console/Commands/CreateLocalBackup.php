@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -85,13 +86,19 @@ class CreateLocalBackup extends Command
     }
 
     /**
-     * Keep a rolling window rather than every archive ever made. A daily zip
-     * kept forever quietly fills the disk, and the machine filling up is itself
-     * a way to lose the thing being protected.
+     * Drop archives older than the keep window.
+     *
+     * A daily zip kept forever quietly fills the disk, and the machine filling
+     * up is itself a way to lose the thing being protected.
+     *
+     * The newest archive is never deleted, however old it is. If the shop is
+     * shut for two months, pruning by age alone would clear the folder and
+     * leave no backup at all — worse than one that is out of date.
      */
     private function prune(string $destination): void
     {
-        $keep = max(1, (int) config('imprint.backup_keep', 30));
+        $days = max(1, (int) config('imprint.backup_keep_days', 30));
+        $cutoff = today()->subDays($days);
 
         $archives = collect(File::files($destination))
             ->filter(fn ($file) => str_starts_with($file->getFilename(), 'imprint-hub_'))
@@ -99,10 +106,34 @@ class CreateLocalBackup extends Command
             ->sortByDesc(fn ($file) => $file->getFilename())
             ->values();
 
-        $archives->slice($keep)->each(function ($file) {
+        $archives->skip(1)->each(function ($file) use ($cutoff, $days) {
+            $takenOn = $this->archiveDate($file);
+            if ($takenOn === null || $takenOn->gte($cutoff)) {
+                return;
+            }
+
             File::delete($file->getPathname());
-            $this->line('  removed old backup: '.$file->getFilename());
+            $this->line("  removed backup older than {$days} days: ".$file->getFilename());
         });
+    }
+
+    /**
+     * The day an archive was taken, read from its name.
+     *
+     * The file's own timestamp is the fallback, since copying a folder about
+     * can reset it while the name stays true.
+     */
+    private function archiveDate(\SplFileInfo $file): ?CarbonImmutable
+    {
+        if (preg_match('/^imprint-hub_(\d{4}-\d{2}-\d{2})_/', $file->getFilename(), $matches)) {
+            try {
+                return CarbonImmutable::parse($matches[1])->startOfDay();
+            } catch (\Throwable) {
+                // Fall through to the file's own timestamp.
+            }
+        }
+
+        return CarbonImmutable::createFromTimestamp($file->getMTime())->startOfDay();
     }
 
     private function dumpDatabase(string $work): void

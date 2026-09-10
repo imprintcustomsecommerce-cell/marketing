@@ -154,6 +154,41 @@ class EventController extends Controller
     }
 
     /**
+     * Tick items off the pre-event checklist.
+     *
+     * Separate from the edit form so both teams can keep it current without
+     * opening — or being allowed to open — the whole event record. Only the
+     * ticks move; the wording of a custom item is changed on the form.
+     */
+    public function preparation(Request $request, Event $event): RedirectResponse
+    {
+        $validated = $request->validate([
+            'preparation_done' => ['nullable', 'array'],
+            'preparation_done.*' => ['string', Rule::in(array_keys(Event::PREPARATION))],
+            'custom_done' => ['nullable', 'array'],
+            'custom_done.*' => ['integer', 'min:0'],
+        ]);
+
+        $ticked = array_map('intval', $validated['custom_done'] ?? []);
+
+        $event->update([
+            // Only items the event actually asked for can be marked done, so a
+            // stale tick cannot survive an item being taken off the list.
+            'preparation_done' => array_values(array_intersect(
+                array_keys($event->preparationNeeded()),
+                $validated['preparation_done'] ?? [],
+            )),
+            'custom_preparation' => array_values(array_map(
+                fn (array $item, int $index) => ['label' => $item['label'], 'done' => in_array($index, $ticked, true)],
+                $event->customPreparation(),
+                array_keys($event->customPreparation()),
+            )),
+        ]);
+
+        return back()->with('success', 'Checklist updated.');
+    }
+
+    /**
      * Delete the event outright.
      *
      * Archiving is the everyday "remove": it hides the event but keeps the
@@ -199,19 +234,35 @@ class EventController extends Controller
     {
         $event->update(['archived_at' => now()]);
 
-        return redirect()->route('admin.events.index')->with('success', 'Event archived. It can be restored anytime.');
+        // The work goes with it. An archived event left its production tasks
+        // sitting on people's boards, due for a day nobody is now working
+        // towards, with no way to tell why they were there.
+        $archived = $event->tasks()->update(['archived_at' => now()]);
+
+        return redirect()->route('admin.events.index')->with(
+            'success',
+            $archived > 0
+                ? "Event archived, along with {$archived} ".str('task')->plural($archived).'. Both come back if you restore it.'
+                : 'Event archived. It can be restored anytime.',
+        );
     }
 
     public function restore(Event $event): RedirectResponse
     {
         $event->update(['archived_at' => null]);
 
+        // Archived tasks are hidden by a global scope, so they have to be asked
+        // for by name to be brought back.
+        $event->tasks()->withoutGlobalScope('not_archived')
+            ->whereNotNull('archived_at')
+            ->update(['archived_at' => null]);
+
         return redirect()->route('admin.events.show', $event)->with('success', 'Event restored.');
     }
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'category' => ['required', Rule::in(array_keys(Event::CATEGORIES))],
             'event_type' => ['required', Rule::in(['in_house','outside_event','tambike'])],
@@ -221,6 +272,21 @@ class EventController extends Controller
             'contact_number' => ['nullable', 'string', 'max:60'],
             'contact_email' => ['nullable', 'email', 'max:255'],
             'event_date' => ['required', 'date'],
+            // Load-in usually precedes the event and load-out follows it, but
+            // neither is required: a short booth is often in and out on the day.
+            'ingress_date' => ['nullable', 'date'],
+            'egress_date' => ['nullable', 'date', 'after_or_equal:ingress_date'],
+            'duration_days' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'booth_size' => ['nullable', 'string', 'max:100'],
+            'venue_type' => ['nullable', Rule::in(array_keys(Event::VENUE_TYPES))],
+            'deal_type' => ['nullable', Rule::in(array_keys(Event::DEAL_TYPES))],
+            // An amount only means anything on a cash deal, and is required there.
+            'cash_amount' => ['nullable', 'required_if:deal_type,cash', 'numeric', 'min:0', 'max:99999999'],
+            'preparation' => ['nullable', 'array'],
+            'preparation.*' => ['string', Rule::in(array_keys(Event::PREPARATION))],
+            'custom_preparation' => ['nullable', 'array', 'max:30'],
+            'custom_preparation.*.label' => ['nullable', 'string', 'max:120'],
+            'custom_preparation.*.done' => ['nullable', 'boolean'],
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i', 'after:start_time'],
             'venue' => ['nullable', 'string', 'max:255'],
@@ -229,6 +295,30 @@ class EventController extends Controller
             'status' => ['required', Rule::in(['new', 'pending', 'confirmed', 'completed', 'cancelled'])],
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
+
+        // Unticking every box posts nothing at all, so an absent list has to
+        // mean "none ticked" rather than "leave the old ones alone".
+        $validated['preparation'] = array_values($validated['preparation'] ?? []);
+
+        // Rows are added in the browser, so a blank one is somebody clicking
+        // "Add item" and changing their mind rather than something to store.
+        $validated['custom_preparation'] = array_values(array_map(
+            fn (array $item) => ['label' => trim($item['label']), 'done' => (bool) ($item['done'] ?? false)],
+            // Ticking on the form says an item is needed, never that it is
+            // already sorted — that is the checklist panel's job.
+            array_filter(
+                $validated['custom_preparation'] ?? [],
+                fn ($item) => is_array($item) && filled(trim((string) ($item['label'] ?? ''))),
+            ),
+        ));
+
+        // An ex-deal carries no figure, so a leftover amount is cleared rather
+        // than kept against a deal that is no longer paid in cash.
+        if (($validated['deal_type'] ?? null) !== 'cash') {
+            $validated['cash_amount'] = null;
+        }
+
+        return $validated;
     }
 }
 

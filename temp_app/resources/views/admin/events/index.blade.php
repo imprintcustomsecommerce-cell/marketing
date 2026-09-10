@@ -70,6 +70,12 @@
     .ev-card .nm:hover{text-decoration:underline}
     .ev-card .meta{color:var(--muted);font-size:.83rem;margin-top:4px}
     .ev-card .foot{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+    .row-actions{display:inline-flex;gap:10px;align-items:center;white-space:nowrap}
+    .row-actions form{display:inline-flex}
+    .row-actions .link-btn{border:0;background:none;padding:0;font:inherit;font-size:.84rem;
+        font-weight:650;cursor:pointer;color:var(--ink-soft);min-height:0}
+    .row-actions .link-btn:hover{text-decoration:underline}
+    .row-actions .link-btn.danger{color:#b91c1c}
 
     @container (max-width:900px){
         .table-card table{display:none}
@@ -199,7 +205,12 @@
                     @endif
                 </td>
                 <td><span class="pill pill-{{ $event->status }}">{{ str($event->status)->title() }}</span></td>
-                <td><a class="edit" href="{{ route('admin.events.edit', $event) }}">Edit</a></td>
+                <td>
+                    <div class="row-actions">
+                        <a class="edit" href="{{ route('admin.events.edit', $event) }}">Edit</a>
+                        @include('admin.events.row-actions', ['event' => $event])
+                    </div>
+                </td>
             </tr>
         @endforeach
         </tbody>
@@ -251,6 +262,10 @@
                             Open chat
                         </a>
                     @endif
+                    <span class="row-actions" style="margin-left:auto">
+                        <a class="edit" href="{{ route('admin.events.edit', $event) }}">Edit</a>
+                        @include('admin.events.row-actions', ['event' => $event])
+                    </span>
                 </div>
             </div>
         @endforeach

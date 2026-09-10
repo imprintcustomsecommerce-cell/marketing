@@ -210,10 +210,26 @@ class TaskHandoffTest extends TestCase
         $this->assertSame(0, Task::count());
     }
 
-    public function test_a_task_cannot_be_raised_for_marketing(): void
+    /**
+     * Marketing used to be barred as a destination, so the only way to pass
+     * work to a colleague was to tell them. It now has a queue of its own,
+     * alongside the crew's.
+     */
+    public function test_a_task_can_be_raised_for_the_marketing_team(): void
     {
         $this->actingAs($this->joey())->post('/admin/tasks', $this->taskFields([
             'for_team' => User::TEAM_MARKETING,
+        ]))->assertRedirect();
+
+        $task = Task::sole();
+        $this->assertSame(User::TEAM_MARKETING, $task->for_team);
+        $this->assertNull($task->user_id, 'it waits for somebody to take it on');
+    }
+
+    public function test_an_unknown_destination_is_still_refused(): void
+    {
+        $this->actingAs($this->joey())->post('/admin/tasks', $this->taskFields([
+            'for_team' => 'accounting',
         ]))->assertSessionHasErrors('for_team');
 
         $this->assertSame(0, Task::count());

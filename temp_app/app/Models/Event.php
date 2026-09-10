@@ -12,7 +12,7 @@ class Event extends Model
 {
     use LogsActivity;
 
-    protected $fillable = ['name', 'event_type', 'event_category', 'category', 'shooters_needed', 'photo_editors_needed', 'video_editors_needed', 'organization', 'contact_person', 'contact_number', 'contact_email', 'event_date', 'start_time', 'end_time', 'venue', 'group_chat_url', 'estimated_pax', 'status', 'notes', 'created_by', 'archived_at'];
+    protected $fillable = ['name', 'event_type', 'event_category', 'category', 'shooters_needed', 'photo_editors_needed', 'video_editors_needed', 'organization', 'contact_person', 'contact_number', 'contact_email', 'event_date', 'start_time', 'end_time', 'venue', 'booth_size', 'venue_type', 'group_chat_url', 'estimated_pax', 'deal_type', 'cash_amount', 'ingress_date', 'egress_date', 'duration_days', 'status', 'notes', 'preparation', 'preparation_done', 'custom_preparation', 'created_by', 'archived_at'];
 
     /** The three kinds of event the shop runs. */
     public const CATEGORIES = [
@@ -24,6 +24,98 @@ class Event extends Model
     public function categoryLabel(): string
     {
         return self::CATEGORIES[$this->category] ?? 'Uncategorised';
+    }
+
+    public const VENUE_TYPES = ['indoor' => 'Indoor', 'outdoor' => 'Outdoor', 'both' => 'Indoor and outdoor'];
+
+    /** Ex-deal is settled in product or exposure; cash carries an amount. */
+    public const DEAL_TYPES = ['exdeal' => 'Ex-deal', 'cash' => 'Full cash'];
+
+    /**
+     * What a booth might need before the van leaves.
+     *
+     * The checklist runs in two stages. Booking the event picks which of these
+     * apply — a hall booking needs no tarpaulin — and those land in
+     * `preparation`. Ticking them off later as they are sorted fills
+     * `preparation_done`. Kept here rather than in the database so the wording
+     * can change without a migration.
+     */
+    public const PREPARATION = [
+        'booth_confirmed' => 'Booth space confirmed with the organiser',
+        'tent' => 'Tent, tables, and chairs',
+        'tarpaulin' => 'Tarpaulin and signage',
+        'stock' => 'Product stock and display units',
+        'flyers' => 'Flyers, cards, and price lists',
+        'giveaways' => 'Giveaways and raffle items',
+        'power' => 'Power source and extension cords',
+        'sound' => 'Sound system',
+        'transport' => 'Vehicle and load-out plan',
+        'crew' => 'Crew roster and call times',
+        'permits' => 'Permits and organiser paperwork',
+        'payment' => 'Payment or ex-deal terms agreed in writing',
+    ];
+
+    public function venueTypeLabel(): ?string
+    {
+        return self::VENUE_TYPES[$this->venue_type] ?? null;
+    }
+
+    public function dealTypeLabel(): ?string
+    {
+        return self::DEAL_TYPES[$this->deal_type] ?? null;
+    }
+
+    /**
+     * Items added by hand for this event only, as a list of {label, done}.
+     *
+     * @return array<int,array{label:string,done:bool}>
+     */
+    public function customPreparation(): array
+    {
+        return array_values(array_filter(
+            $this->custom_preparation ?? [],
+            fn ($item) => is_array($item) && filled($item['label'] ?? null),
+        ));
+    }
+
+    /**
+     * The standing items this event needs, as key => label, in list order.
+     *
+     * @return array<string,string>
+     */
+    public function preparationNeeded(): array
+    {
+        return array_intersect_key(self::PREPARATION, array_flip($this->preparation ?? []));
+    }
+
+    public function isPreparationItemDone(string $key): bool
+    {
+        return in_array($key, $this->preparation_done ?? [], true);
+    }
+
+    /** Items sorted, out of the ones this event asked for. */
+    public function preparationDone(): int
+    {
+        $standing = count(array_intersect(array_keys($this->preparationNeeded()), $this->preparation_done ?? []));
+        $custom = count(array_filter($this->customPreparation(), fn (array $item) => ! empty($item['done'])));
+
+        return $standing + $custom;
+    }
+
+    public function preparationTotal(): int
+    {
+        return count($this->preparationNeeded()) + count($this->customPreparation());
+    }
+
+    /** Nothing was asked for, so there is no checklist to show. */
+    public function hasPreparation(): bool
+    {
+        return $this->preparationTotal() > 0;
+    }
+
+    public function isPreparationComplete(): bool
+    {
+        return $this->hasPreparation() && $this->preparationDone() === $this->preparationTotal();
     }
 
     /** How the event is run — the field marketing actually picks on the form. */
@@ -53,7 +145,11 @@ class Event extends Model
 
     protected function casts(): array
     {
-        return ['event_date' => 'date', 'archived_at' => 'datetime'];
+        return [
+            'event_date' => 'date', 'ingress_date' => 'date', 'egress_date' => 'date',
+            'archived_at' => 'datetime', 'preparation' => 'array', 'preparation_done' => 'array', 'custom_preparation' => 'array',
+            'cash_amount' => 'decimal:2',
+        ];
     }
 
     public function coverage(): HasOne

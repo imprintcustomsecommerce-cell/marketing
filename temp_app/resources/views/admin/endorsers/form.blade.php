@@ -57,9 +57,7 @@
                 $obligationCount = $endorser->obligations()->count();
             @endphp
             <form method="post" action="{{ route('admin.endorsers.destroy', $endorser) }}" style="margin-left:auto"
-                  onsubmit="return confirm('Delete {{ addslashes($endorser->name) }} for good?
-
-{{ $kitCount }} PR kit(s) and {{ $obligationCount }} obligation(s) go with them. This cannot be undone. Set them to Inactive instead if you only want them off the roster.')">
+                  data-confirm="Delete {{ $endorser->name }} for good?" data-confirm-detail="{{ $kitCount }} PR kit(s) and {{ $obligationCount }} obligation(s) go with them. This cannot be undone. Set them to Inactive instead if you only want them off the roster." data-confirm-action="Delete">
                 @csrf @method('delete')
                 <button class="button ghost" type="submit" style="color:#b91c1c;border-color:#fecaca">Delete permanently</button>
             </form>

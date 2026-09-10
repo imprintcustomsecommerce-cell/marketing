@@ -76,6 +76,73 @@ class EventDeleteTest extends TestCase
         $this->assertDatabaseHas('events', ['id' => $event->id]);
     }
 
+    public function test_the_events_list_offers_delete_beside_edit(): void
+    {
+        $admin = $this->admin();
+        $this->event($admin);
+
+        $this->actingAs($admin)->get('/admin/events')
+            ->assertOk()
+            ->assertSee('Edit')
+            ->assertSee('Archive')
+            ->assertSee('Delete');
+
+        // Deleting stays with the administrator, so staff get Edit and Archive.
+        $this->actingAs($this->marketingStaff())->get('/admin/events')
+            ->assertOk()
+            ->assertSee('Archive')
+            // The shared confirmation dialog carries a "Delete" button of its
+            // own, so the row's action is checked by its form target.
+            ->assertDontSee('method="delete"', false);
+    }
+
+    public function test_deleting_from_the_list_returns_to_the_list(): void
+    {
+        $admin = $this->admin();
+        $event = $this->event($admin);
+
+        $this->actingAs($admin)->delete("/admin/events/{$event->id}")
+            ->assertRedirect('/admin/events')
+            // The confirmation names it, so the list is checked for the row.
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('events', ['id' => $event->id]);
+        $this->actingAs($admin)->get('/admin/events')
+            ->assertOk()
+            ->assertDontSee(route('admin.events.edit', $event->id));
+    }
+
+    public function test_the_edit_screen_offers_archive_and_delete(): void
+    {
+        $admin = $this->admin();
+        $event = $this->event($admin);
+
+        // The events list links "Edit" straight to this screen, so the controls
+        // have to be reachable from here and not only from the detail page.
+        $this->actingAs($admin)->get("/admin/events/{$event->id}/edit")
+            ->assertOk()
+            ->assertSee('Archive event')
+            ->assertSee('Delete permanently');
+
+        // Staff get the archive, but deleting stays with the administrator.
+        $this->actingAs($this->marketingStaff())->get("/admin/events/{$event->id}/edit")
+            ->assertOk()
+            ->assertSee('Archive event')
+            ->assertDontSee('Delete permanently');
+    }
+
+    public function test_an_archived_event_offers_restore_instead(): void
+    {
+        $admin = $this->admin();
+        $event = $this->event($admin);
+        $this->actingAs($admin)->patch("/admin/events/{$event->id}/archive");
+
+        $this->actingAs($admin)->get("/admin/events/{$event->id}/edit")
+            ->assertOk()
+            ->assertSee('Restore event')
+            ->assertDontSee('Archive event');
+    }
+
     public function test_archiving_still_keeps_the_record(): void
     {
         $admin = $this->admin();

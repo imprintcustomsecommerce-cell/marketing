@@ -142,28 +142,29 @@ class BackupTest extends TestCase
 
     public function test_old_archives_are_pruned_so_the_disk_does_not_fill(): void
     {
-        config()->set('imprint.backup_keep', 3);
+        // Kept by age rather than by count: the shop machine is not on every
+        // day, so a fixed number of files can span far more than a month.
+        config()->set('imprint.backup_keep_days', 30);
         File::ensureDirectoryExists($this->destination);
 
-        // Five older archives, named the way the command names them.
-        foreach (['2026-01-01_010000', '2026-01-02_010000', '2026-01-03_010000', '2026-01-04_010000', '2026-01-05_010000'] as $stamp) {
-            File::put($this->destination."/imprint-hub_$stamp.zip", 'older archive');
+        foreach ([60, 31, 29, 5] as $daysAgo) {
+            $name = 'imprint-hub_'.today()->subDays($daysAgo)->format('Y-m-d').'_010000.zip';
+            File::put($this->destination.'/'.$name, 'older archive');
         }
 
         $this->artisan('imprint:backup')->assertSuccessful();
 
-        // The new one plus the two most recent of the old set.
         $kept = $this->archives();
-        $this->assertCount(3, $kept);
-        $this->assertContains('imprint-hub_2026-01-05_010000.zip', $kept);
-        $this->assertContains('imprint-hub_2026-01-04_010000.zip', $kept);
-        $this->assertNotContains('imprint-hub_2026-01-01_010000.zip', $kept);
+        $this->assertNotContains('imprint-hub_'.today()->subDays(60)->format('Y-m-d').'_010000.zip', $kept);
+        $this->assertNotContains('imprint-hub_'.today()->subDays(31)->format('Y-m-d').'_010000.zip', $kept);
+        $this->assertContains('imprint-hub_'.today()->subDays(29)->format('Y-m-d').'_010000.zip', $kept);
+        $this->assertContains('imprint-hub_'.today()->subDays(5)->format('Y-m-d').'_010000.zip', $kept);
     }
 
     public function test_it_never_prunes_below_one_archive(): void
     {
         // A misconfigured zero must not wipe the backups it just took.
-        config()->set('imprint.backup_keep', 0);
+        config()->set('imprint.backup_keep_days', 0);
 
         $this->artisan('imprint:backup')->assertSuccessful();
 
@@ -172,7 +173,7 @@ class BackupTest extends TestCase
 
     public function test_files_that_are_not_ours_are_left_alone(): void
     {
-        config()->set('imprint.backup_keep', 1);
+        config()->set('imprint.backup_keep_days', 1);
         File::ensureDirectoryExists($this->destination);
         File::put($this->destination.'/notes-from-the-shop.txt', 'do not delete me');
 

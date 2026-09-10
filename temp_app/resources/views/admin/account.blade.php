@@ -67,7 +67,7 @@
 </form>
 
 @if(auth()->user()->avatarUrl())
-    <form method="post" action="{{ route('admin.account.avatar.destroy') }}" onsubmit="return confirm('Remove your profile picture?')" style="margin:-8px 0 18px">@csrf @method('delete')
+    <form method="post" action="{{ route('admin.account.avatar.destroy') }}" data-confirm="Remove your profile picture?" data-confirm-detail="You can upload a new one at any time." data-confirm-action="Remove" style="margin:-8px 0 18px">@csrf @method('delete')
         <button class="button ghost" type="submit">Remove profile picture</button>
     </form>
 @endif

@@ -245,7 +245,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16v12H7l-3 3z"/><path d="M8 9h8M8 12.5h5"/></svg>
             </span>
             <div>
-                <h2>Work you sent to multimedia</h2>
+                <h2>Work you sent to the team</h2>
                 <div class="queue-sub">Still open. Remove anything raised by mistake.</div>
             </div>
             <span class="queue-count">{{ $raisedByMe->count() }} open</span>
@@ -267,7 +267,7 @@
                         </div>
                     </div>
                     <form method="post" action="{{ route('admin.tasks.destroy', $sent) }}"
-                          onsubmit="return confirm('Remove &quot;{{ addslashes($sent->title) }}&quot;?{{ $sent->user ? ' '.addslashes($sent->user->name).' has already taken this on.' : '' }}')">
+                          data-confirm="Remove &quot;{{ $sent->title }}&quot;?" data-confirm-detail="{{ $sent->user ? $sent->user->name.' has already taken this on.' : 'Nobody has taken this on yet.' }}" data-confirm-action="Remove">
                         @csrf @method('delete')
                         <button class="take" type="submit" style="color:#b91c1c">Remove</button>
                     </form>
@@ -284,7 +284,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16v12H7l-3 3z"/><path d="M8 9h8M8 12.5h5"/></svg>
             </span>
             <div>
-                <h2>From marketing</h2>
+                <h2>{{ $teamQueueLabel }}</h2>
                 <div class="queue-sub">Nobody has taken these on yet</div>
             </div>
             <span class="queue-count">{{ $teamQueue->count() }} waiting</span>
@@ -337,19 +337,32 @@
             <div>
                 <label for="for_team">Add to</label>
                 <select id="for_team" name="for_team">
-                    <option value="{{ $multimediaTeam }}" selected>Multimedia queue (automatic)</option>
-                    <option value="personal">Personal board</option>
+                    <option value="{{ $multimediaTeam }}" selected>Multimedia queue</option>
+                    <option value="{{ $marketingTeam }}">Marketing queue</option>
+                    <option value="personal">Personal board (only you)</option>
                 </select>
             </div>
+            {{-- Left on "Anyone" the task waits in the queue for whoever picks
+                 it up, which is the usual way round. Naming someone is for work
+                 only one person can do. One picker per team, shown with its own
+                 queue, so a crew member cannot be picked for marketing work. --}}
             @if($crew->isNotEmpty())
-                {{-- Left on "Anyone" the task waits in the queue, which is the
-                     usual way round. Naming someone is for work that only one
-                     person can do. Ignored when the task is a personal one. --}}
                 <div data-show-when="for_team" data-show-value="{{ $multimediaTeam }}">
                     <label for="assign_to">Assign to</label>
                     <select id="assign_to" name="assign_to">
                         <option value="">Anyone on the crew</option>
                         @foreach($crew as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+            @if($marketingPeople->isNotEmpty())
+                <div data-show-when="for_team" data-show-value="{{ $marketingTeam }}">
+                    <label for="assign_to_marketing">Assign to</label>
+                    <select id="assign_to_marketing" name="assign_to">
+                        <option value="">Anyone on marketing</option>
+                        @foreach($marketingPeople as $id => $name)
                             <option value="{{ $id }}">{{ $name }}</option>
                         @endforeach
                     </select>
@@ -438,11 +451,11 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 19 3-.7 9.3-9.3a1.8 1.8 0 0 0 0-2.6l-.7-.7a1.8 1.8 0 0 0-2.6 0L4.7 15z"/></svg>
                         </button>
                         @if($task->for_team)
-                            <form method="post" action="{{ route('admin.tasks.release', $task) }}" onsubmit="return confirm('Put this back in the team queue?')">@csrf
+                            <form method="post" action="{{ route('admin.tasks.release', $task) }}" data-confirm="Put this back in the team queue?" data-confirm-detail="It leaves your board and waits for somebody to take it on." data-confirm-action="Put back">@csrf
                                 <button class="give-back" type="submit">Put back</button>
                             </form>
                         @endif
-                        <form method="post" action="{{ route('admin.tasks.destroy', $task) }}" onsubmit="return confirm('Remove this task?')">@csrf @method('delete')
+                        <form method="post" action="{{ route('admin.tasks.destroy', $task) }}" data-confirm="Remove this task?" data-confirm-detail="It is deleted from the board for good." data-confirm-action="Remove">@csrf @method('delete')
                             <button class="icon del" type="submit" aria-label="Remove task" title="Remove">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
                             </button>

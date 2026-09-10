@@ -649,5 +649,6 @@
     })();
 </script>
 @include('partials.password-reveal')
+@include('partials.confirm-dialog')
 </body>
 </html>

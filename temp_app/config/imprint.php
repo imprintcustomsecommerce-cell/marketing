@@ -7,9 +7,13 @@ return [
     'backup_path' => env('LOCAL_BACKUP_PATH') ?: storage_path('app/backups'),
     'nas_backup_path' => env('NAS_BACKUP_PATH'),
 
-    // How many archives to keep locally. A month of daily backups is enough to
-    // notice and recover from a mistake made a few weeks ago.
-    'backup_keep' => (int) env('BACKUP_KEEP', 30),
+    // How long to keep archives locally. A month is enough to notice and
+    // recover from a mistake made a few weeks ago.
+    //
+    // By age, not by count: the shop machine is not on every day, so thirty
+    // files could span a couple of months and quietly hold far more than a
+    // month of history.
+    'backup_keep_days' => max(1, (int) env('BACKUP_KEEP_DAYS', env('BACKUP_KEEP', 30))),
     // Accounts still on the seeded password are held on the account screen until
     // they pick their own. Set REQUIRE_PASSWORD_CHANGE=false to lift that while
     // testing; leave it on everywhere real people sign in.

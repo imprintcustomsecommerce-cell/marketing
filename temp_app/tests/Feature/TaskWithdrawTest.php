@@ -50,7 +50,7 @@ class TaskWithdrawTest extends TestCase
 
         $this->actingAs($marketing)->get('/admin/tasks')
             ->assertOk()
-            ->assertSee('Work you sent to multimedia')
+            ->assertSee('Work you sent to the team')
             ->assertSee('Cut the teaser')
             ->assertSee('Waiting for someone to take it');
     }
@@ -71,6 +71,6 @@ class TaskWithdrawTest extends TestCase
 
         $this->actingAs($this->crew())->get('/admin/tasks')
             ->assertOk()
-            ->assertDontSee('Work you sent to multimedia');
+            ->assertDontSee('Work you sent to the team');
     }
 }

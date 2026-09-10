@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\LogsActivity;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -28,6 +29,20 @@ class Task extends Model
     protected function casts(): array
     {
         return ['task_date' => 'date', 'completed_at' => 'datetime', 'claimed_at' => 'datetime', 'archived_at' => 'datetime'];
+    }
+
+    /**
+     * Archived tasks are out of sight everywhere.
+     *
+     * Boards, queues, counts, and notifications read tasks from a dozen places,
+     * and archiving an event has to take its work off all of them. Filtering at
+     * each call site would eventually miss one, so it is filtered here; the few
+     * places that need archived rows ask for them with
+     * `withoutGlobalScope('not_archived')`.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('not_archived', fn (Builder $query) => $query->whereNull('archived_at'));
     }
 
     public function user(): BelongsTo
