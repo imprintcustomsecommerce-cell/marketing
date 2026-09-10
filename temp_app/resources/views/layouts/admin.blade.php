@@ -506,10 +506,6 @@
                 </a>
                 @endif
                 @if(auth()->user()->isAdmin())
-                <a class="{{ request()->routeIs('admin.activity') ? 'active' : '' }}" href="{{ route('admin.activity') }}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 8v5l3 2M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
-                    Activity Log
-                </a>
                 <a class="{{ request()->routeIs('admin.team.*') ? 'active' : '' }}" href="{{ route('admin.team.index') }}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 11.5a3 3 0 1 0-2-5.3M21.5 20a5.5 5.5 0 0 0-4-5.3"/></svg>
                     Team

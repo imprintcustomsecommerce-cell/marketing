@@ -58,7 +58,6 @@
 
         <section class="card"><h2>Client links</h2>@forelse($event->publicLinks as $link)<div class="row-item"><span class="row-main"><strong>{{ $link->isAvailable() ? 'Active link' : 'Inactive link' }}</strong><span class="muted small">{{ $link->submission_count }} responses</span></span></div>@empty<p class="muted small">No client review links have been generated.</p>@endforelse</section>
 
-        <section class="card"><div class="topline" style="margin-bottom:12px"><h2>History</h2>@if(auth()->user()->isAdmin())<a class="edit" href="{{ route('admin.activity') }}">All activity</a>@endif</div><div class="timeline">@forelse($activities as $activity)<div class="timeline-item"><strong>{{ ucfirst($activity->action) }}</strong><div class="muted small">{{ $activity->user?->name ?? 'Public/system' }} · {{ $activity->created_at->diffForHumans() }}</div></div>@empty<p class="muted small">No changes recorded yet.</p>@endforelse</div></section>
     </aside>
 </div>
 @endsection

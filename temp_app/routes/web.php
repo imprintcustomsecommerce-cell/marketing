@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountController;
-use App\Http\Controllers\Admin\ActivityController;
 use App\Http\Controllers\Admin\CalendarController;
 use App\Http\Controllers\Admin\CoverageController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -109,7 +108,6 @@ Route::middleware('internal.host')->group(function (): void {
 
         // Managing accounts belongs to the administrator alone.
         Route::middleware('admin.only')->group(function (): void {
-            Route::get('/activity', ActivityController::class)->name('activity');
             Route::get('/team', [TeamController::class, 'index'])->name('team.index');
             Route::get('/team/create', [TeamController::class, 'create'])->name('team.create');
             Route::post('/team', [TeamController::class, 'store'])->name('team.store');

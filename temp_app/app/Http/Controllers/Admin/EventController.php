@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ActivityLog;
 use App\Models\Coverage;
 use App\Models\Event;
 use App\Models\EventFile;
@@ -100,25 +99,7 @@ class EventController extends Controller
     {
         $event->load(['coverage.shooter', 'coverage.photoEditor', 'coverage.videoEditor', 'tasks.user', 'files.uploader', 'publicLinks', 'creator']);
 
-        $subjectGroups = [
-            Event::class => [$event->id],
-            Coverage::class => $event->coverage ? [$event->coverage->id] : [],
-            Task::class => $event->tasks->pluck('id')->all(),
-            EventFile::class => $event->files->pluck('id')->all(),
-        ];
-
-        $activityQuery = ActivityLog::with('user')->where(function ($query) use ($subjectGroups): void {
-            foreach ($subjectGroups as $type => $ids) {
-                if ($ids) {
-                    $query->orWhere(fn ($part) => $part->where('subject_type', $type)->whereIn('subject_id', $ids));
-                }
-            }
-        });
-
-        return view('admin.events.show', [
-            'event' => $event,
-            'activities' => $activityQuery->latest()->limit(15)->get(),
-        ]);
+        return view('admin.events.show', ['event' => $event]);
     }
     public function summary(Event $event): View
     {

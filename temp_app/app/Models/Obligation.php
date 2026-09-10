@@ -2,13 +2,11 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Obligation extends Model
 {
-    use LogsActivity;
 
     protected $fillable = ['endorser_id', 'event_id', 'pr_kit_id', 'sequence', 'title', 'type', 'description', 'due_date', 'completed_on', 'proof_url', 'status', 'notes', 'created_by'];
 

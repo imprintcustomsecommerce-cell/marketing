@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +9,6 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Event extends Model
 {
-    use LogsActivity;
 
     protected $fillable = ['name', 'event_type', 'event_category', 'category', 'shooters_needed', 'photo_editors_needed', 'video_editors_needed', 'organization', 'contact_person', 'contact_number', 'contact_email', 'event_date', 'start_time', 'end_time', 'venue', 'booth_size', 'venue_type', 'group_chat_url', 'estimated_pax', 'deal_type', 'cash_amount', 'ingress_date', 'egress_date', 'duration_days', 'status', 'is_public', 'public_summary', 'notes', 'preparation', 'preparation_done', 'custom_preparation', 'created_by', 'archived_at'];
 

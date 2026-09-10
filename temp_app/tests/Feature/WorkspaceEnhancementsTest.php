@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\ActivityLog;
 use App\Models\Coverage;
 use App\Models\Event;
 use App\Models\PublicSubmission;
@@ -54,18 +53,6 @@ class WorkspaceEnhancementsTest extends TestCase
 
         $this->actingAs($marketing)->get('/admin/notifications')->assertOk()->assertSee('New public inquiries')->assertDontSee('Tasks from Marketing');
         $this->actingAs($multimedia)->get('/admin/notifications')->assertOk()->assertSee('Tasks from Marketing')->assertDontSee('New public inquiries');
-    }
-
-    public function test_creating_and_editing_a_record_writes_an_audit_trail(): void
-    {
-        $admin = $this->user(User::TEAM_MARKETING, 'admin', 'Admin');
-        $this->actingAs($admin);
-        $event = $this->event($admin);
-        $event->update(['venue' => 'New Cebu Hall']);
-
-        $this->assertDatabaseHas(ActivityLog::class, ['user_id' => $admin->id, 'subject_type' => Event::class, 'subject_id' => $event->id, 'action' => 'created']);
-        $this->assertDatabaseHas(ActivityLog::class, ['user_id' => $admin->id, 'subject_type' => Event::class, 'subject_id' => $event->id, 'action' => 'updated']);
-        $this->actingAs($admin)->get('/admin/activity')->assertOk()->assertSee('Event “Cebu Expo” updated');
     }
 
     public function test_event_detail_connects_client_coverage_and_tasks(): void

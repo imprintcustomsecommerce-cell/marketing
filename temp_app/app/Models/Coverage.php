@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\LogsActivity;
 use App\Support\CoverageDesk;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +13,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Coverage extends Model
 {
-    use LogsActivity;
 
     protected $fillable = ['event_id', 'stage', 'requested_at', 'requested_by', 'accepted_at', 'accepted_by', 'shooter_id', 'photo_editor_id', 'video_editor_id', 'photo_status', 'photo_posted_on', 'video_status', 'video_posted_on', 'photo_due_on', 'video_due_on', 'checklist', 'delivery_url', 'delivery_sent_at', 'delivery_sent_by', 'remarks', 'created_by'];
 

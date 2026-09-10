@@ -28,7 +28,14 @@ class DatabaseSeeder extends Seeder
                 'must_change_password' => true,
             ],
         );
-        $admin->update(['name' => env('ADMIN_NAME', $admin->name), 'role' => 'admin', 'team' => User::TEAM_MARKETING, 'is_active' => true]);
+        // Role, team, and active status are re-asserted on every launch so the
+        // shop can never end up with no way into the administrator account.
+        //
+        // The name is not, and must not be: ADMIN_NAME seeds the account when it
+        // is first created, and renaming it afterwards is the administrator's
+        // business. Setting it here meant a launch quietly undid the rename,
+        // which is the same rule the placeholder accounts below already follow.
+        $admin->update(['role' => 'admin', 'team' => User::TEAM_MARKETING, 'is_active' => true]);
 
         $placeholders = [
             [User::TEAM_MARKETING, 'Marketing 2', 'marketing2@imprintcustoms.ph'],

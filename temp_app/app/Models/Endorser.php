@@ -2,14 +2,12 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\LogsActivity;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Endorser extends Model
 {
-    use LogsActivity;
 
     protected $fillable = ['name', 'type', 'contact_number', 'email', 'team_or_group', 'birthday', 'social_media_url', 'group_chat_url', 'status', 'profile', 'notes', 'created_by'];
 

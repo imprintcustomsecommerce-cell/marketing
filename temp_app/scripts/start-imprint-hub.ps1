@@ -61,6 +61,43 @@ Get-ChildItem -LiteralPath 'bootstrap\cache' -Filter '*.tmp' -ErrorAction Silent
 
 $port = 8081
 
+# Clear out anything left from a previous run before starting.
+#
+# Closing the window with the X skips the cleanup at the bottom of this script,
+# so the tunnel and scheduler outlive it. The next launch then finds port 8081
+# still held, "artisan serve" fails to bind, and the launcher exits — leaving a
+# tunnel pointing at nothing and a public address that answers 502.
+#
+# Matched on this app's own port, never on the process name: other projects on
+# this machine run their own cloudflared on other ports and must not be touched.
+$stale = @(Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like "*127.0.0.1:$port*" })
+
+foreach ($listener in @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)) {
+    $owner = Get-CimInstance Win32_Process -Filter "ProcessId=$($listener.OwningProcess)" -ErrorAction SilentlyContinue
+    # Only our own server. Anything else on this port is somebody else's and is
+    # reported rather than killed.
+    if ($owner -and $owner.CommandLine -like "*$appPath*") { $stale += $owner }
+    elseif ($owner) {
+        Stop-WithMessage "Port $port is in use by $($owner.Name) (PID $($owner.ProcessId)), which is not Imprint Hub. Close it and try again."
+    }
+}
+
+# Deliberately not named $scheduler: that name holds the running scheduler
+# later on, and the cleanup block at the bottom calls .HasExited on it.
+$staleSchedulers = @(Get-CimInstance Win32_Process -Filter "Name='php.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like '*artisan*schedule:work*' -and $_.CommandLine -notlike '*ImprintProduction*' })
+$stale += $staleSchedulers
+
+$stale = $stale | Sort-Object ProcessId -Unique
+if ($stale) {
+    Write-Host "Clearing $($stale.Count) leftover $(if ($stale.Count -eq 1) { 'process' } else { 'processes' }) from a previous run..."
+    foreach ($process in $stale) {
+        Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 2
+}
+
 # Like ImprintProduction's start-all.bat: one Laravel bound to 0.0.0.0 serves the
 # office network and the tunnel at the same time (0.0.0.0 covers 127.0.0.1, which
 # is what cloudflared points at).

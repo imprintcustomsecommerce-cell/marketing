@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +9,6 @@ use Illuminate\Support\Carbon;
 
 class PrKit extends Model
 {
-    use LogsActivity;
 
     protected $fillable = ['reference', 'recipient', 'purpose', 'quantity', 'endorser_id', 'event_id', 'contents', 'courier', 'tracking_number', 'address', 'delivery_date', 'pickup_date', 'status', 'content_quota', 'notes', 'created_by'];
 
