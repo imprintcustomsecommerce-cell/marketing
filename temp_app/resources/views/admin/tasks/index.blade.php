@@ -134,6 +134,26 @@
     .review-row .when{font-size:.78rem;color:var(--muted)}
     .review-row form{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .review-row input[type=text]{width:210px}
+    .done-elsewhere{padding:16px 18px}
+    .done-elsewhere header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .done-elsewhere h2{margin:0;font-size:1rem}
+    .done-elsewhere .count{font-size:.78rem;opacity:.55;white-space:nowrap}
+    /* A rule between people, not around each: the panel stays one block rather
+       than becoming a stack of boxes inside a box. */
+    .done-elsewhere .person + .person{border-top:1px solid rgba(0,0,0,.07);margin-top:12px;padding-top:12px}
+    .done-elsewhere .person-head{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+    .done-elsewhere .badge{
+        display:inline-flex;align-items:center;justify-content:center;
+        width:26px;height:26px;border-radius:50%;flex:none;
+        background:rgba(0,0,0,.07);font-size:.68rem;font-weight:800;letter-spacing:.02em
+    }
+    .done-elsewhere .person-name{font-weight:700;font-size:.92rem}
+    .done-elsewhere .person-count{font-size:.74rem;opacity:.5}
+    .done-elsewhere ul{list-style:none;margin:0;padding:0 0 0 34px;display:grid;gap:6px}
+    .done-elsewhere li{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.92rem}
+    .done-elsewhere .tick{width:14px;height:14px;flex:none;color:#2e7d4f}
+    .done-elsewhere .what{flex:1;min-width:0}
+    .done-elsewhere .when{opacity:.5;font-size:.8rem;font-variant-numeric:tabular-nums;white-space:nowrap}
 </style>
 
 <div class="topline">
@@ -206,7 +226,7 @@
     </section>
 @endif
 
-@if($carriedOver > 0)
+@if($carriedOver > 0 && ! $readOnly)
     <div class="carry">
         <strong>{{ $carriedOver }} unfinished {{ Str::plural('task', $carriedOver) }}</strong> left open on earlier days.
         <form method="post" action="{{ route('admin.tasks.carry-over') }}">@csrf
@@ -316,6 +336,13 @@
     </div>
 @endif
 
+@if($readOnly)
+    {{-- Somebody else's day. Shown so marketing can see what the crew have on
+         without having to ask, and without being able to change it. --}}
+    <div class="card muted small" style="display:flex;align-items:center;gap:8px">
+        <strong>Read only.</strong> You are looking at {{ $owner->name }}'s board. Only {{ $owner->name }} and an administrator can change it.
+    </div>
+@else
 <div class="card">
     <form class="add {{ $canHandOver ? 'with-team' : '' }}" method="post" action="{{ route('admin.tasks.store') }}">@csrf
         <input type="hidden" name="task_date" value="{{ $date->toDateString() }}">
@@ -372,7 +399,9 @@
         <div><button class="button" type="submit">Add task</button></div>
     </form>
 </div>
+@endif
 
+@unless($readOnly)
 <div class="card">
     @if(auth()->user()->isAdmin() && $owner->is(auth()->user()))
         <p class="muted small" style="margin:0">Administrator boards do not need to be submitted for checking.</p>
@@ -410,6 +439,47 @@
         <p class="muted small" style="margin:0">Add a task before sending the day for checking.</p>
     @endif
 </div>
+@endunless
+
+@if($finishedByOthers->isNotEmpty())
+    {{-- Finished work from other people's boards, so it surfaces here rather
+         than only to whoever thought to go and look for it. Grouped by person:
+         "what did the crew get through" is the question being answered, and a
+         flat list repeats the same name down the page. --}}
+    <section class="card done-elsewhere">
+        <header>
+            <h2>Finished by the team{{ $date->isToday() ? ' today' : ' on '.$date->format('j M') }}</h2>
+            <span class="count">{{ $finishedByOthers->count() }} {{ Str::plural('task', $finishedByOthers->count()) }}</span>
+        </header>
+
+        @foreach($finishedByOthers->groupBy('user_id') as $theirs)
+            @php
+                // Block form deliberately: inline @php(...) breaks on the nested
+                // parentheses in first(), and emits an unterminated tag.
+                $person = $theirs->first()->user;
+            @endphp
+            <div class="person">
+                <div class="person-head">
+                    {{-- Initials rather than a photo: it is a name badge, and it
+                         reads at a glance without loading anything. --}}
+                    <span class="badge">{{ Str::of($person?->name ?? '?')->explode(' ')->map(fn ($word) => Str::substr($word, 0, 1))->take(2)->implode('') }}</span>
+                    <span class="person-name">{{ $person?->name }}</span>
+                    <span class="person-count">{{ $theirs->count() }} done</span>
+                </div>
+                <ul>
+                    @foreach($theirs as $task)
+                        <li>
+                            <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 13 4 4 10-10"/></svg>
+                            <span class="what">{{ $task->title }}</span>
+                            @if($task->event)<span class="task-chip">{{ $task->event->name }}</span>@endif
+                            @if($task->completed_at)<span class="when">{{ $task->completed_at->format('H:i') }}</span>@endif
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endforeach
+    </section>
+@endif
 
 <div class="board">
     @foreach(App\Models\Task::STATUSES as $status => $label)
@@ -432,6 +502,11 @@
                     @endif
                     @if($task->details)<div class="task-note">{{ $task->details }}</div>@endif
 
+                    @if($readOnly)
+                        {{-- Nothing to press on somebody else's board, so the
+                             footer carries the state in words instead. --}}
+                        <div class="task-foot"><span class="from-team">{{ $label }}</span></div>
+                    @else
                     <div class="task-foot">
                         @if($primary)
                             <form method="post" action="{{ route('admin.tasks.update', $task) }}">@csrf @method('put')
@@ -462,7 +537,10 @@
                         </form>
                     </div>
 
+                    @endif
+
                     {{-- Fixing a typo should not mean deleting and retyping the card. --}}
+                    @unless($readOnly)
                     <form class="edit-panel" id="edit-{{ $task->id }}" method="post" action="{{ route('admin.tasks.update', $task) }}" hidden>@csrf @method('put')
                         <label for="title-{{ $task->id }}">Task</label>
                         <input id="title-{{ $task->id }}" name="title" value="{{ $task->title }}" maxlength="255" required>
@@ -480,6 +558,7 @@
                             <button class="move" type="button" data-cancel="{{ $task->id }}">Cancel</button>
                         </div>
                     </form>
+                    @endunless
                 </article>
             @empty
                 <div class="none">

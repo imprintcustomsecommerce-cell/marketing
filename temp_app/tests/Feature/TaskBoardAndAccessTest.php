@@ -161,7 +161,7 @@ class TaskBoardAndAccessTest extends TestCase
         $this->assertSame('todo', $task->fresh()->status);
     }
 
-    public function test_staff_always_get_their_own_board_even_if_they_ask_for_another(): void
+    public function test_marketing_can_read_a_crew_board_but_not_change_it(): void
     {
         $mine = $this->marketingStaff();
         $theirs = $this->crew();
@@ -170,7 +170,22 @@ class TaskBoardAndAccessTest extends TestCase
 
         $this->actingAs($mine)->get("/admin/tasks?user={$theirs->id}")
             ->assertOk()
-            ->assertDontSee('Secret shoot plan');
+            ->assertSee('Secret shoot plan')
+            ->assertSee('Read only');
+    }
+
+    public function test_staff_get_their_own_board_when_they_ask_for_a_colleagues(): void
+    {
+        $mine = $this->marketingStaff();
+        // Named apart: the helper builds the email from the name.
+        $colleague = $this->make('Marketing 3', User::TEAM_MARKETING);
+
+        Task::create(['user_id' => $colleague->id, 'title' => 'Private desk work', 'task_date' => today(), 'status' => 'todo']);
+
+        // Reading across teams is deliberate; reading across desks is not.
+        $this->actingAs($mine)->get("/admin/tasks?user={$colleague->id}")
+            ->assertOk()
+            ->assertDontSee('Private desk work');
     }
 
     public function test_the_administrator_can_read_anyones_board(): void

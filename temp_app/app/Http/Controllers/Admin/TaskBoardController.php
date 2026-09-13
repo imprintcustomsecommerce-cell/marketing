@@ -59,10 +59,17 @@ class TaskBoardController extends Controller
                 ->whereDate('event_date', '>=', today()->subMonth())
                 ->orderBy('event_date')
                 ->pluck('name', 'id'),
-            // Only the administrator gets the person switcher.
-            'people' => $request->user()->isAdmin()
-                ? User::where('is_active', true)->orderBy('team')->orderBy('name')->get()
-                : collect(),
+            // The administrator switches to anyone. Marketing gets themselves
+            // and the crew, so they can read a crew member's day without being
+            // able to wander through each other's.
+            'people' => match (true) {
+                $request->user()->isAdmin() => User::where('is_active', true)->orderBy('team')->orderBy('name')->get(),
+                $request->user()->team === User::TEAM_MARKETING => User::where('is_active', true)
+                    ->where(fn ($query) => $query->where('team', User::TEAM_MULTIMEDIA)->orWhere('id', $request->user()->id))
+                    ->orderBy('team')->orderBy('name')->get(),
+                default => collect(),
+            },
+            'readOnly' => $this->isReadOnly($request, $owner),
             'submission' => TaskSubmission::where('user_id', $owner->id)->whereDate('task_date', $date)->first(),
             'pendingReviews' => $request->user()->isAdmin()
                 ? TaskSubmission::with('user')->whereNull('reviewed_at')->orderBy('submitted_at')->get()
@@ -101,6 +108,11 @@ class TaskBoardController extends Controller
                     ->orderBy('task_date')
                     ->get()
                 : collect(),
+            // What other people finished on this day, so the work shows up
+            // without anyone having to go looking for it person by person.
+            // Marketing see the crew; the administrator sees everybody.
+            'finishedByOthers' => $this->finishedByOthers($request, $date),
+
             'carriedOver' => Task::where('user_id', $owner->id)
                 ->whereDate('task_date', '<', $date)
                 ->whereIn('status', ['todo', 'doing'])
@@ -110,7 +122,7 @@ class TaskBoardController extends Controller
 
     public function store(Request $request, TaskDesk $desk): RedirectResponse
     {
-        $owner = $this->owner($request);
+        $owner = $this->ownerForWriting($request);
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -246,7 +258,7 @@ class TaskBoardController extends Controller
     public function carryOver(Request $request): RedirectResponse
     {
         $date = $this->date($request->input('date'));
-        $owner = $this->owner($request);
+        $owner = $this->ownerForWriting($request);
 
         $moved = Task::where('user_id', $owner->id)
             ->whereDate('task_date', '<', $date)
@@ -265,7 +277,7 @@ class TaskBoardController extends Controller
     public function submit(Request $request): RedirectResponse
     {
         $date = $this->date($request->input('date'));
-        $owner = $this->owner($request);
+        $owner = $this->ownerForWriting($request);
 
         $validated = $request->validate(['note' => ['nullable', 'string', 'max:1000']]);
 
@@ -319,11 +331,85 @@ class TaskBoardController extends Controller
     {
         $requested = $request->input('user');
 
-        if ($requested && $request->user()->isAdmin()) {
+        if (! $requested) {
+            return $request->user();
+        }
+
+        if ($request->user()->isAdmin()) {
             return User::findOr($requested, fn () => $request->user());
         }
 
+        // Marketing can look at a crew member's day, to see what has been done
+        // without having to ask. Looking only: every route that changes a task
+        // checks ownership separately, so this opens a window, not a door.
+        if ($request->user()->team === User::TEAM_MARKETING) {
+            return User::where('team', User::TEAM_MULTIMEDIA)
+                ->where('is_active', true)
+                ->find($requested) ?? $request->user();
+        }
+
         return $request->user();
+    }
+
+    /**
+     * Tasks other people ticked off on this day.
+     *
+     * The crew write their own work and tick it off on their own board, so
+     * without this it is only visible to somebody who already knows to go and
+     * look at it. Done work is the part worth surfacing: what is still open is
+     * that person's business until it is finished.
+     *
+     * @return \Illuminate\Support\Collection<int,\App\Models\Task>
+     */
+    private function finishedByOthers(Request $request, CarbonImmutable $date)
+    {
+        $viewer = $request->user();
+
+        if (! $viewer->canSeeMarketing()) {
+            return collect();
+        }
+
+        return Task::with(['user', 'event'])
+            ->where('status', 'done')
+            ->whereDate('task_date', $date)
+            ->where('user_id', '!=', $viewer->id)
+            // An administrator oversees both teams. Marketing see the crew's
+            // work, not each other's desks.
+            ->when(! $viewer->isAdmin(), fn ($query) => $query->whereHas(
+                'user',
+                fn ($user) => $user->where('team', User::TEAM_MULTIMEDIA),
+            ))
+            ->orderBy('completed_at')
+            ->get();
+    }
+
+    /**
+     * Whether this board is somebody else's, being looked at rather than worked.
+     *
+     * The administrator switches to a board to work it — carrying tasks over,
+     * checking a day off. Anyone else is only reading.
+     */
+    private function isReadOnly(Request $request, User $owner): bool
+    {
+        return ! $owner->is($request->user()) && ! $request->user()->isAdmin();
+    }
+
+    /**
+     * The board being written to, which is a narrower thing than the board being
+     * looked at.
+     *
+     * Marketing can now open a crew member's day, and every route that writes
+     * resolves its board the same way the screen does — so without this, posting
+     * the same user id would add tasks to that crew member's board, carry their
+     * work over, or hand in their day for them.
+     */
+    private function ownerForWriting(Request $request): User
+    {
+        $owner = $this->owner($request);
+
+        abort_if($this->isReadOnly($request, $owner), 403, 'That board can be read, not changed.');
+
+        return $owner;
     }
 
     private function authoriseTask(Request $request, Task $task): void
