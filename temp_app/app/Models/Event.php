@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Event extends Model
 {
 
-    protected $fillable = ['name', 'event_type', 'event_category', 'category', 'shooters_needed', 'photo_editors_needed', 'video_editors_needed', 'organization', 'contact_person', 'contact_number', 'contact_email', 'event_date', 'start_time', 'end_time', 'venue', 'booth_size', 'venue_type', 'group_chat_url', 'estimated_pax', 'deal_type', 'cash_amount', 'exdeal_amount', 'ingress_date', 'egress_date', 'ingress_time', 'egress_time', 'duration_days', 'status', 'is_public', 'public_summary', 'notes', 'preparation', 'preparation_done', 'custom_preparation', 'created_by', 'archived_at'];
+    protected $fillable = ['name', 'event_type', 'event_category', 'category', 'shooters_needed', 'photo_editors_needed', 'video_editors_needed', 'organization', 'contact_person', 'contact_number', 'contact_email', 'event_date', 'start_time', 'end_time', 'venue', 'booth_size', 'venue_type', 'group_chat_url', 'estimated_pax', 'deal_type', 'cash_amount', 'exdeal_amount', 'ingress_date', 'egress_date', 'ingress_time', 'egress_time', 'duration_days', 'status', 'public_summary', 'notes', 'preparation', 'preparation_done', 'custom_preparation', 'created_by', 'archived_at'];
 
     /** The three kinds of event the shop runs. */
     public const CATEGORIES = [
@@ -34,6 +34,9 @@ class Event extends Model
      *
      * Archiving is therefore the way to keep a booking off the website.
      */
+    // The is_public column is still on the table and deliberately not listed
+    // above: every event is published now, so filling or casting it would give
+    // a dead flag the appearance of meaning something.
     public function scopePubliclyListed($query)
     {
         return $query->whereNull('archived_at')
@@ -188,7 +191,7 @@ class Event extends Model
     {
         return [
             'event_date' => 'date', 'ingress_date' => 'date', 'egress_date' => 'date',
-            'archived_at' => 'datetime', 'is_public' => 'boolean', 'preparation' => 'array', 'preparation_done' => 'array', 'custom_preparation' => 'array',
+            'archived_at' => 'datetime', 'preparation' => 'array', 'preparation_done' => 'array', 'custom_preparation' => 'array',
             'cash_amount' => 'decimal:2', 'exdeal_amount' => 'decimal:2',
         ];
     }
