@@ -23,6 +23,9 @@ class CoverageController extends Controller
         // been filled in, so the list is driven by events and left-joined to
         // the log. An event nobody has touched still needs to be visible.
         $events = Event::with(['coverage.shooter', 'coverage.photoEditor', 'coverage.videoEditor'])
+            // Archived events are off the books: the crew have nothing to shoot
+            // and no answer to give, so they do not belong in this list.
+            ->whereNull('archived_at')
             ->when($filter === 'requested', fn ($query) => $query->whereHas('coverage', fn ($q) => $q->where('stage', CoverageDesk::REQUESTED)))
             // Taken on, but nobody named to shoot it. Deliberately not the same
             // as "has no shooter row": a job still sitting in the new-request
@@ -42,7 +45,8 @@ class CoverageController extends Controller
         return view('admin.coverage.index', [
             'events' => $events,
             'filter' => $filter,
-            'unassignedCount' => Event::whereDate('event_date', '>=', today())
+            'unassignedCount' => Event::whereNull('archived_at')
+                ->whereDate('event_date', '>=', today())
                 ->whereHas('coverage', fn ($q) => $q
                     ->where('stage', CoverageDesk::ACCEPTED)->whereNull('shooter_id'))
                 ->count(),

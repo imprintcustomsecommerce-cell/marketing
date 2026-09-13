@@ -301,7 +301,7 @@
                          take on, work can sit here while the request itself has been
                          accepted — saying "not taken on yet" of both read as nobody
                          having picked the job up at all. --}}
-                    <p class="muted small" style="margin:-6px 0 12px">Requests waiting for an answer, and production work nobody has taken.</p>
+                    <p class="muted small" style="margin:-6px 0 12px">Coverage with nobody shooting it yet, and production work nobody has taken.</p>
 
                     @foreach($awaitingCrew as $coverage)
                         <div class="row">

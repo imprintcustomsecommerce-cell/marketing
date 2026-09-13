@@ -21,6 +21,11 @@ use App\Models\Task;
 class CoverageDesk
 {
     /** Marketing has asked for this; nobody on the crew has picked it up. */
+    /**
+     * Kept so records written before the request step was dropped still read,
+     * and so a declined job asked for again has somewhere to land. Nothing
+     * creates coverage in this stage any more: booking an event is the handover.
+     */
     public const REQUESTED = 'requested';
 
     /** Multimedia has taken it on, with or without a shooter named yet. */
@@ -38,11 +43,15 @@ class CoverageDesk
     ];
 
     /**
-     * Open a coverage job for an event, or re-open one that was turned down.
+     * Open a coverage job for an event.
      *
-     * Idempotent on purpose: saving an event twice, or pressing the button on a
-     * job the crew already accepted, must not throw away who accepted it or
-     * bounce a live job back into the new-work queue.
+     * Booking the event is the handover. There used to be a request the crew had
+     * to accept before the work was theirs, but marketing were asking for
+     * something that was already coming to them either way, and every hall
+     * booking sat in the queue waiting for an answer nobody needed to give.
+     *
+     * Idempotent on purpose: saving an event twice must not throw away who is
+     * already on the job.
      */
     public function request(Event $event, ?User $by = null): Coverage
     {
@@ -53,19 +62,21 @@ class CoverageDesk
         }
 
         if ($coverage) {
-            // A declined job asked for again is new work once more, and the
-            // earlier refusal should not linger on the record.
+            // A job turned down and then asked for again is live work once
+            // more, and the earlier refusal should not linger on the record.
             $coverage->update([
-                'stage' => self::REQUESTED,
+                'stage' => self::ACCEPTED,
                 'requested_at' => now(),
                 'requested_by' => $by?->id,
+                'accepted_at' => now(),
             ]);
 
             return $coverage;
         }
 
         $coverage = $event->coverage()->create([
-            'stage' => self::REQUESTED,
+            'stage' => self::ACCEPTED,
+            'accepted_at' => now(),
             'requested_at' => now(),
             'requested_by' => $by?->id,
             // Sensible defaults: fast social photos first, edited video after.

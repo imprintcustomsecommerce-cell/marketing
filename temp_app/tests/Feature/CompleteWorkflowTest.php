@@ -12,7 +12,8 @@ class CompleteWorkflowTest extends TestCase {
   $crew=User::factory()->create(['role'=>'staff','team'=>'multimedia']);
   $this->actingAs($admin)->post('/admin/inquiries/'.$inquiry->id.'/convert')->assertSessionHasNoErrors()->assertRedirect();
   $event=Event::findOrFail($inquiry->fresh()->converted_event_id);
-  $this->assertSame('requested',$event->coverage->stage);
+  // Converting an inquiry hands the job to the crew, same as booking one.
+  $this->assertSame('accepted',$event->coverage->stage);
   // Three shooting tasks plus one each for the photo and video editors.
   $this->assertCount(5,$event->tasks);
   $this->assertTrue($event->tasks->every(fn($t)=>$t->for_team==='multimedia'));

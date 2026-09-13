@@ -55,7 +55,8 @@ class DashboardController extends Controller
             // cannot see the crew's own screens, so this is where they find out
             // a request is still sitting unanswered.
             'awaitingCrew' => Coverage::with('event')
-                ->where('stage', CoverageDesk::REQUESTED)
+                ->where('stage', CoverageDesk::ACCEPTED)
+                ->whereNull('shooter_id')
                 ->whereHas('event')
                 ->get()
                 ->sortBy(fn (Coverage $coverage) => $coverage->event->event_date)
@@ -115,10 +116,13 @@ class DashboardController extends Controller
             ]);
         }
 
-        // Coverage marketing has asked for that the crew have not answered.
+        // Work with the crew that nobody has put their name to. Booking an event
+        // hands it over on its own, so what is worth chasing is not whether the
+        // job was accepted but whether anybody is shooting it.
+        //
         // Only Joey can open their screen, so everyone else is sent to the
         // events list rather than into a 403.
-        $awaitingCrew = Coverage::where('stage', CoverageDesk::REQUESTED)->count();
+        $awaitingCrew = Coverage::where('stage', CoverageDesk::ACCEPTED)->whereNull('shooter_id')->count();
         if ($awaitingCrew > 0) {
             $items->push([
                 'label' => $awaitingCrew.' coverage '.str('request')->plural($awaitingCrew).' with multimedia',

@@ -56,7 +56,7 @@ class CoverageHandoffTest extends TestCase
         ], $overrides);
     }
 
-    public function test_booking_an_event_opens_a_coverage_job_for_the_crew(): void
+    public function test_booking_an_event_hands_the_job_straight_to_the_crew(): void
     {
         $joey = $this->joey();
 
@@ -65,13 +65,15 @@ class CoverageHandoffTest extends TestCase
 
         $coverage = Coverage::firstOrFail();
 
-        $this->assertSame(CoverageDesk::REQUESTED, $coverage->stage);
+        // Live work from the moment it is booked. Marketing used to raise a
+        // request the crew had to accept, which asked for something that was
+        // coming to them anyway.
+        $this->assertSame(CoverageDesk::ACCEPTED, $coverage->stage);
         $this->assertSame($joey->id, $coverage->requested_by);
-        $this->assertNotNull($coverage->requested_at);
+        $this->assertNotNull($coverage->accepted_at);
 
-        // Marketing does not pick the person. That is the crew's call.
+        // Marketing does not pick the person. That is still the crew's call.
         $this->assertNull($coverage->shooter_id);
-        $this->assertNull($coverage->accepted_at);
     }
 
     public function test_an_inquiry_converted_into_an_event_reaches_the_crew_too(): void
@@ -87,17 +89,16 @@ class CoverageHandoffTest extends TestCase
 
         $this->actingAs($joey)->post("/admin/inquiries/{$inquiry->id}/convert", ['as' => 'event']);
 
-        $this->assertSame(CoverageDesk::REQUESTED, Coverage::firstOrFail()->stage);
+        $this->assertSame(CoverageDesk::ACCEPTED, Coverage::firstOrFail()->stage);
     }
 
-    public function test_the_new_job_shows_in_the_crews_queue(): void
+    public function test_the_new_job_shows_on_the_crews_screen(): void
     {
         $this->actingAs($this->joey())->post('/admin/events', $this->eventFields(['name' => 'Tanay Loop Run']));
 
-        $this->actingAs($this->crew())->get('/admin/coverage?show=requested')
+        $this->actingAs($this->crew())->get('/admin/coverage?show=all')
             ->assertOk()
-            ->assertSee('Tanay Loop Run')
-            ->assertSee('New request');
+            ->assertSee('Tanay Loop Run');
     }
 
     public function test_the_crew_can_take_a_job_on(): void
@@ -149,7 +150,8 @@ class CoverageHandoffTest extends TestCase
 
         $this->actingAs($joey)->post("/admin/events/{$event->id}/request-coverage")->assertRedirect();
 
-        $this->assertSame(CoverageDesk::REQUESTED, Coverage::firstOrFail()->stage);
+        // Asked for again, it is live work once more rather than a fresh ask.
+        $this->assertSame(CoverageDesk::ACCEPTED, Coverage::firstOrFail()->stage);
     }
 
     /**
@@ -187,7 +189,7 @@ class CoverageHandoffTest extends TestCase
         $this->assertSame(1, Coverage::where('event_id', $event->id)->count());
     }
 
-    public function test_marketing_sees_that_a_job_is_still_with_the_crew(): void
+    public function test_marketing_sees_a_job_nobody_is_shooting_yet(): void
     {
         $joey = $this->joey();
         $this->actingAs($joey)->post('/admin/events', $this->eventFields(['name' => 'Tanay Loop Run']));
@@ -300,10 +302,11 @@ class CoverageHandoffTest extends TestCase
             'is_active' => true,
         ]);
 
+        // The screen belongs to the crew: marketing cannot claim a role on it.
         $this->actingAs($marketing)->post("/admin/coverage/{$event->id}/respond", ['answer' => 'accept'])
             ->assertForbidden();
 
-        $this->assertSame(CoverageDesk::REQUESTED, Coverage::firstOrFail()->stage);
+        $this->assertNull(Coverage::firstOrFail()->shooter_id);
     }
 
     /**

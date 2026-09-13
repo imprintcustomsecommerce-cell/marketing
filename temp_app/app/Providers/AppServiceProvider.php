@@ -44,7 +44,7 @@ class AppServiceProvider extends ServiceProvider
             // a new job is visible from whatever screen they are on.
             $view->with(
                 'newCoverageBadge',
-                $user?->team === User::TEAM_MULTIMEDIA ? Coverage::where('stage', CoverageDesk::REQUESTED)->count() : 0,
+                $user?->team === User::TEAM_MULTIMEDIA ? Coverage::where('stage', CoverageDesk::ACCEPTED)->whereNull('shooter_id')->count() : 0,
             );
 
             // Tasks marketing has raised for the crew that nobody has taken.

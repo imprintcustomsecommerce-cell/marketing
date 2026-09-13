@@ -24,7 +24,7 @@ class ReportController extends Controller
 
     public function index(): View
     {
-        $coverages=Coverage::with('revisions')->get(); $delivered=$coverages->whereNotNull('delivery_sent_at');
+        $coverages=Coverage::withoutGlobalScope('live_event')->with('revisions')->get(); $delivered=$coverages->whereNotNull('delivery_sent_at');
         return view('admin.reports.index', ['reports' => self::REPORTS, 'analytics' => [
             'delivery' => $delivered->isEmpty() ? '—' : round($delivered->avg(fn($c)=>$c->event?->event_date?->diffInDays($c->delivery_sent_at) ?? 0),1).' days',
             'overdue' => $coverages->isEmpty() ? '0%' : round($coverages->filter(fn($c)=>($c->photo_due_on?->lt(today())&&!in_array($c->photo_status,['posted','not_required']))||($c->video_due_on?->lt(today())&&!in_array($c->video_status,['posted','not_required'])))->count()/$coverages->count()*100).'%',

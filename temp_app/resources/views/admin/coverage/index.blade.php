@@ -23,7 +23,7 @@
     .ask-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:11px}
     .flag{display:inline-flex;align-items:center;gap:6px;font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#92400e;background:#fef3c7;border:1px solid #fde68a;padding:3px 9px;border-radius:999px;white-space:nowrap}
     /* Side by side these two push the six-column table past its container and
-       "Not needed" falls off the edge, so in the table they stack. The card
+       the role buttons fall off the edge, so in the table they stack. The card
        view below has the width to keep them on one line. */
     .respond{display:flex;gap:6px;align-items:stretch;flex-wrap:wrap}
     .respond button{flex:1 1 auto;justify-content:center}
@@ -88,9 +88,6 @@
 <div class="list-head">
     <div class="periods">
         {{-- New work first: this is the queue marketing sends into. --}}
-        <a class="{{ $filter === 'requested' ? 'on' : '' }} {{ $requestedCount ? 'warn' : '' }}" href="{{ route('admin.coverage.index', ['show' => 'requested']) }}">
-            New requests<span class="n">{{ $requestedCount }}</span>
-        </a>
         <a class="{{ $filter === 'all' ? 'on' : '' }}" href="{{ route('admin.coverage.index') }}">All events</a>
         <a class="{{ $filter === 'outstanding' ? 'on' : '' }}" href="{{ route('admin.coverage.index', ['show' => 'outstanding']) }}">Outstanding</a>
         <a class="{{ $filter === 'unassigned' ? 'on' : '' }} {{ $unassignedCount ? 'warn' : '' }}" href="{{ route('admin.coverage.index', ['show' => 'unassigned']) }}">
@@ -154,14 +151,6 @@
                             {{ $event->eventTypeLabel() }}
                             @if($event->venue) · {{ $event->venue }} @endif
                         </div>
-                        @if($waiting)
-                            <div style="margin-top:6px">
-                                <span class="flag">New request</span>
-                                @if($coverage?->requester)
-                                    <span class="muted small">from {{ $coverage->requester->name }}</span>
-                                @endif
-                            </div>
-                        @endif
                         @if($coverage?->remarks)
                             <div class="note">{{ Str::limit($coverage->remarks, 70) }}</div>
                         @endif
@@ -189,19 +178,13 @@
                     </div>
                 </td>
                 <td class="respond-cell">
-                    @if($waiting || ($openToCrew ?? false))
+                    @if($openToCrew ?? false)
+                        {{-- Roles still going begging. The work is already the
+                             crew's; this is only which part of it is yours. --}}
                         <div class="respond">
-                            @if(auth()->user()->isAdmin())
-                                <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf<input type="hidden" name="answer" value="accept"><button class="take" type="submit">Accept coverage</button></form>
-                            @else
-                                @foreach($coverage?->openRoles() ?? [] as $role => $label)
-                                    <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf<input type="hidden" name="answer" value="accept"><input type="hidden" name="specialty" value="{{ $role }}"><button class="take" type="submit">{{ $label }}</button></form>
-                                @endforeach
-                            @endif
-                            <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf
-                                <input type="hidden" name="answer" value="decline">
-                                <button type="submit">Not needed</button>
-                            </form>
+                            @foreach($coverage?->openRoles() ?? [] as $role => $label)
+                                <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf<input type="hidden" name="answer" value="accept"><input type="hidden" name="specialty" value="{{ $role }}"><button class="take" type="submit">{{ $label }}</button></form>
+                            @endforeach
                         </div>
                     @else
                         <a class="edit" href="{{ route('admin.coverage.edit', $event) }}">{{ $coverage ? 'Edit' : 'Log' }}</a>
@@ -243,34 +226,19 @@
                     <div class="meta">{{ Str::limit($coverage->remarks, 90) }}</div>
                 @endif
 
-                @if($waiting)
-                    {{-- An unanswered request is a question, not a production
-                         record: both edit panels would only ever read "not
-                         started" here, so the card is the ask and the answer. --}}
-                    <div class="ask-line">
-                        <span class="flag">New request</span>
-                        {{-- One span, so the separator does not collect the
-                             whitespace between two Blade conditionals. --}}
-                        <span class="muted small">
-                            @if($coverage?->requester)from {{ $coverage->requester->name }}@endif
-                            @if($coverage?->requester && $coverage?->requested_at) · @endif
-                            @if($coverage?->requested_at){{ $coverage->requested_at->diffForHumans() }}@endif
-                        </span>
-                    </div>
+                @php
+                    $openRoles = ! auth()->user()->isAdmin() ? ($coverage?->openRoles() ?? []) : [];
+                @endphp
+                @if($openRoles !== [])
+                    {{-- The work is already the crew's; this is only which part
+                         of it is yours. --}}
                     <div class="respond">
-                        @if(auth()->user()->isAdmin())
-                            <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf<input type="hidden" name="answer" value="accept"><button class="take" type="submit">Accept coverage</button></form>
-                        @else
-                            @foreach($coverage?->openRoles() ?? [] as $role => $label)
-                                <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf<input type="hidden" name="answer" value="accept"><input type="hidden" name="specialty" value="{{ $role }}"><button class="take" type="submit">{{ $label }}</button></form>
-                            @endforeach
-                        @endif
-                        <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf
-                            <input type="hidden" name="answer" value="decline">
-                            <button type="submit">Not needed</button>
-                        </form>
+                        @foreach($openRoles as $role => $label)
+                            <form method="post" action="{{ route('admin.coverage.respond', $event) }}">@csrf<input type="hidden" name="answer" value="accept"><input type="hidden" name="specialty" value="{{ $role }}"><button class="take" type="submit">{{ $label }}</button></form>
+                        @endforeach
                     </div>
-                @else
+                @endif
+
                 <div class="cuts">
                     <div>
                         <div class="lb">Photo edit</div>
@@ -289,7 +257,6 @@
                         </div>
                     </div>
                 </div>
-                @endif
             </div>
         @endforeach
     </div>

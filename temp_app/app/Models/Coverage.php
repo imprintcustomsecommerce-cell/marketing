@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\CoverageDesk;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -92,6 +93,22 @@ class Coverage extends Model
         }
 
         return $open;
+    }
+
+    /**
+     * Coverage for archived events is out of sight everywhere.
+     *
+     * Archiving an event hides it from the diary and takes its tasks off the
+     * boards, but its coverage row was still turning up in the crew's queue,
+     * the workload counts, and the calendar. Coverage is read from a dozen
+     * places and filtering each one would eventually miss one, so it is
+     * filtered here. Reporting asks for the archived rows back by name, since
+     * work that was delivered still happened.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('live_event', fn (Builder $query) => $query
+            ->whereHas('event', fn (Builder $event) => $event->whereNull('archived_at')));
     }
 
     public function isRequested(): bool
