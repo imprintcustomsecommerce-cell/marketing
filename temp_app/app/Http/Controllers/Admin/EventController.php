@@ -8,11 +8,14 @@ use App\Models\Event;
 use App\Models\EventFile;
 use App\Models\Task;
 use App\Support\CoverageDesk;
+use App\Support\ShopifyStore;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Throwable;
 
 class EventController extends Controller
 {
@@ -86,7 +89,7 @@ class EventController extends Controller
         $desk->request($event, $request->user());
 
         $redirect = redirect()->route('admin.events.index')->with('success', 'Event added, and multimedia have been asked to cover it.');
-        if ($this->conflicts($event)->isNotEmpty()) $redirect->with('warning', 'Schedule warning: another event is already booked on this date.');
+        if ($this->conflicts($event)->isNotEmpty()) $redirect->with('warning', 'Schedule warning: another event is booked at the same venue and time.');
         return $redirect;
     }
 
@@ -118,6 +121,40 @@ class EventController extends Controller
         return back()->with('success', "Multimedia have been asked to cover {$event->name}.");
     }
 
+    /**
+     * Push the events diary to the website now, rather than waiting for the
+     * five-minute run.
+     *
+     * Only live events go: the sync publishes what is neither archived nor
+     * cancelled, and takes down anything on the website that no longer
+     * qualifies. So this both adds today's bookings and clears out the ones
+     * that were archived since the last run.
+     */
+    public function syncWebsite(ShopifyStore $shopify): RedirectResponse
+    {
+        if (! $shopify->isConfigured()) {
+            return back()->with('warning', 'The website is not connected yet, so there was nothing to send.');
+        }
+
+        try {
+            $exit = Artisan::call('imprint:shopify-calendar');
+        } catch (Throwable $exception) {
+            // Named rather than swallowed: somebody pressed a button and is
+            // waiting to hear what happened.
+            report($exception);
+
+            return back()->with('warning', 'The website could not be updated: '.$exception->getMessage());
+        }
+
+        if ($exit !== 0) {
+            return back()->with('warning', 'The website could not be updated. The next scheduled run will try again.');
+        }
+
+        $published = Event::publiclyListed()->count();
+
+        return back()->with('success', "Website calendar updated. {$published} ".str('event')->plural($published).' are showing.');
+    }
+
     public function update(Request $request, Event $event): RedirectResponse
     {
         $oldDate = $event->event_date->copy();
@@ -130,7 +167,7 @@ class EventController extends Controller
         }
 
         $redirect = redirect()->route('admin.events.index')->with('success', 'Event updated successfully. Unfinished production dates were synchronized.');
-        if ($this->conflicts($event)->isNotEmpty()) $redirect->with('warning', 'Schedule warning: another event is already booked on this date.');
+        if ($this->conflicts($event)->isNotEmpty()) $redirect->with('warning', 'Schedule warning: another event is booked at the same venue and time.');
         return $redirect;
     }
 
@@ -201,14 +238,36 @@ class EventController extends Controller
             ->with('success', "\"{$name}\" and everything filed under it were deleted.");
     }
 
+    /**
+     * Other events that genuinely clash with this one.
+     *
+     * Two events on one date are ordinary here — the shop runs several in a
+     * week. What cannot be done is two at the same place at the same time, so
+     * both have to be true before anyone is warned. Warning on the date alone
+     * trained people to click past it, which is worse than not warning at all.
+     */
     private function conflicts(Event $event)
     {
-        return Event::whereKeyNot($event->id)->whereNull('archived_at')->whereDate('event_date', $event->event_date)->whereNotIn('status', ['cancelled'])->get()->filter(function(Event $other) use($event){
-            $sameVenue=$event->venue && $other->venue && mb_strtolower(trim($event->venue))===mb_strtolower(trim($other->venue));
-            if(!$event->start_time || !$event->end_time || !$other->start_time || !$other->end_time) return true;
-            $overlaps=$event->start_time < $other->end_time && $event->end_time > $other->start_time;
-            return $overlaps || $sameVenue;
-        });
+        return Event::whereKeyNot($event->id)
+            ->whereNull('archived_at')
+            ->whereDate('event_date', $event->event_date)
+            ->whereNotIn('status', ['cancelled'])
+            ->get()
+            ->filter(function (Event $other) use ($event) {
+                $venue = fn (?string $value) => mb_strtolower(trim((string) $value));
+
+                if (blank($event->venue) || blank($other->venue) || $venue($event->venue) !== $venue($other->venue)) {
+                    return false;
+                }
+
+                // Same venue, but nobody has said when. The times cannot be
+                // compared, so the clash is possible and worth raising.
+                if (! $event->start_time || ! $event->end_time || ! $other->start_time || ! $other->end_time) {
+                    return true;
+                }
+
+                return $event->start_time < $other->end_time && $event->end_time > $other->start_time;
+            });
     }
 
     public function archive(Event $event): RedirectResponse
@@ -257,12 +316,14 @@ class EventController extends Controller
             // neither is required: a short booth is often in and out on the day.
             'ingress_date' => ['nullable', 'date'],
             'egress_date' => ['nullable', 'date', 'after_or_equal:ingress_date'],
+            'ingress_time' => ['nullable', 'date_format:H:i'], 'egress_time' => ['nullable', 'date_format:H:i'],
             'duration_days' => ['nullable', 'integer', 'min:1', 'max:60'],
             'booth_size' => ['nullable', 'string', 'max:100'],
             'venue_type' => ['nullable', Rule::in(array_keys(Event::VENUE_TYPES))],
             'deal_type' => ['nullable', Rule::in(array_keys(Event::DEAL_TYPES))],
             // An amount only means anything on a cash deal, and is required there.
             'cash_amount' => ['nullable', 'required_if:deal_type,cash', 'numeric', 'min:0', 'max:99999999'],
+            'exdeal_amount' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'preparation' => ['nullable', 'array'],
             'preparation.*' => ['string', Rule::in(array_keys(Event::PREPARATION))],
             'custom_preparation' => ['nullable', 'array', 'max:30'],
@@ -274,7 +335,6 @@ class EventController extends Controller
             'group_chat_url' => ['nullable', 'url', 'max:500'],
             'estimated_pax' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'status' => ['required', Rule::in(['new', 'pending', 'confirmed', 'completed', 'cancelled'])],
-            'is_public' => ['nullable', 'boolean'],
             'public_summary' => ['nullable', 'string', 'max:600'],
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
@@ -283,7 +343,6 @@ class EventController extends Controller
         // mean "none ticked" rather than "leave the old ones alone".
         // An unticked checkbox posts nothing, so absence has to mean "not on the
         // website" rather than leaving whatever was there before.
-        $validated['is_public'] = (bool) ($validated['is_public'] ?? false);
 
         $validated['preparation'] = array_values($validated['preparation'] ?? []);
 
@@ -305,9 +364,15 @@ class EventController extends Controller
             $validated['cash_amount'] = null;
         }
 
+        if (($validated['deal_type'] ?? null) !== 'exdeal') {
+            $validated['exdeal_amount'] = null;
+        }
+
         return $validated;
     }
 }
+
+
 
 
 

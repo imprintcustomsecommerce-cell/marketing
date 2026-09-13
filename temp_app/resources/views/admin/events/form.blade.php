@@ -49,7 +49,7 @@
             <div><label for="start_time">Start time</label><input id="start_time" type="time" name="start_time" value="{{ old('start_time', $event->start_time) }}"></div>
             <div><label for="end_time">End time</label><input id="end_time" type="time" name="end_time" value="{{ old('end_time', $event->end_time) }}"></div>
             <div><label for="ingress_date">Ingress date</label><input id="ingress_date" type="date" name="ingress_date" value="{{ old('ingress_date', optional($event->ingress_date)->format('Y-m-d')) }}"><span class="field-help">Load-in day, if the booth goes up before event day.</span></div>
-            <div><label for="egress_date">Egress date</label><input id="egress_date" type="date" name="egress_date" value="{{ old('egress_date', optional($event->egress_date)->format('Y-m-d')) }}"><span class="field-help">Load-out day.</span></div>
+            <div><label for="egress_date">Egress date</label><input id="egress_date" type="date" name="egress_date" value="{{ old('egress_date', optional($event->egress_date)->format('Y-m-d')) }}"><span class="field-help">Load-out day.</span></div><div><label for="ingress_time">Ingress time</label><input id="ingress_time" type="time" name="ingress_time" value="{{ old('ingress_time', $event->ingress_time) }}"></div><div><label for="egress_time">Egress time</label><input id="egress_time" type="time" name="egress_time" value="{{ old('egress_time', $event->egress_time) }}"></div>
             <div><label for="duration_days">How many days</label><input id="duration_days" type="number" min="1" max="60" name="duration_days" value="{{ old('duration_days', $event->duration_days) }}" placeholder="1"><span class="field-help">How long the event runs.</span></div>
             <div><label for="booth_size">Booth size</label><input id="booth_size" name="booth_size" value="{{ old('booth_size', $event->booth_size) }}" placeholder="e.g. 3m x 3m"></div>
             <div><label for="venue_type">Indoor or outdoor</label><select id="venue_type" name="venue_type"><option value="">Not stated</option>@foreach(App\Models\Event::VENUE_TYPES as $value => $label)<option value="{{ $value }}" @selected(old('venue_type', $event->venue_type) === $value)>{{ $label }}</option>@endforeach</select></div>
@@ -68,6 +68,11 @@
                 <label for="cash_amount">How much <span class="required">*</span></label>
                 <input id="cash_amount" type="number" step="0.01" min="0" name="cash_amount" value="{{ old('cash_amount', $event->cash_amount) }}" placeholder="0.00">
                 <span class="field-help">Agreed cash amount, in pesos.</span>
+            </div>
+            <div data-show-when="deal_type" data-show-value="exdeal">
+                <label for="exdeal_amount">How much is the ex-deal worth?</label>
+                <input id="exdeal_amount" type="number" step="0.01" min="0" name="exdeal_amount" value="{{ old('exdeal_amount', $event->exdeal_amount) }}" placeholder="0.00">
+                <span class="field-help">Estimated value of the exchanged goods or services, in pesos.</span>
             </div>
             <div class="span-2">
                 <label>What this event needs</label>
@@ -115,17 +120,7 @@
             <span><h2>Coordination</h2><p>Keep the working conversation and internal context attached to the event.</p></span>
         </div>
         <div class="form-grid">
-            <div class="span-2">
-                <label class="publish-toggle">
-                    <input type="hidden" name="is_public" value="0">
-                    <input type="checkbox" name="is_public" value="1" @checked(old('is_public', $event->is_public))>
-                    <span>
-                        <strong>Show on the website calendar</strong>
-                        <span class="field-help">Customers see the name, date, time, venue, and the blurb below. Contact details, notes, terms, and the checklist never leave the Hub.</span>
-                    </span>
-                </label>
-            </div>
-            <div class="span-2"><label for="public_summary">Website blurb</label><textarea id="public_summary" name="public_summary" maxlength="600" placeholder="A line or two for customers reading the website…">{{ old('public_summary', $event->public_summary) }}</textarea><span class="field-help">Optional. Shown under the event on the website.</span></div>
+            <div class="span-2"><label for="public_summary">Website blurb</label><textarea id="public_summary" name="public_summary" maxlength="600" placeholder="A line or two for customers reading the website…">{{ old('public_summary', $event->public_summary) }}</textarea><span class="field-help">Optional. Shown under the event on the website. Every event appears on the website calendar — archive one to take it off.</span></div>
             <div class="span-2"><label for="group_chat_url">Group chat link</label><input id="group_chat_url" type="url" name="group_chat_url" value="{{ old('group_chat_url', $event->group_chat_url) }}" placeholder="https://m.me/j/..."><span class="field-help">Messenger, Viber, or WhatsApp coordination thread.</span></div>
             <div class="span-2"><label for="notes">Internal notes</label><textarea id="notes" name="notes" placeholder="Requirements, reminders, or important context…">{{ old('notes', $event->notes) }}</textarea></div>
         </div>

@@ -25,6 +25,13 @@
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="sqlite"/>
+        <!-- Blanked so the suite can never reach the real shop. Saving an event
+             now pushes the website calendar, and without this every test that
+             touches an event would write to the live storefront. A test that
+             wants the sync sets its own config and fakes the HTTP. -->
+        <env name="SHOPIFY_STORE_DOMAIN" value=""/>
+        <env name="SHOPIFY_CLIENT_ID" value=""/>
+        <env name="SHOPIFY_CLIENT_SECRET" value=""/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>

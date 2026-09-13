@@ -15,7 +15,8 @@ Artisan::command('inspire', function () {
 Schedule::command('imprint:backup')->hourly()->withoutOverlapping();
 Schedule::command('imprint:tunnel-check')->everyFiveMinutes()->withoutOverlapping();
 
-// The website calendar. Fifteen minutes is soon enough for an events diary and
-// keeps the shop machine off Shopify's rate limits; if the PC is off, the
-// storefront simply keeps showing what it already has.
-Schedule::command('imprint:shopify-calendar')->everyFifteenMinutes()->withoutOverlapping();
+// The website calendar. Five minutes is short enough that ticking an event
+// feels immediate; a run that changes nothing costs one read, so the shop stays
+// well inside Shopify's rate limits. If the PC is off, the storefront simply
+// keeps showing what it already has.
+Schedule::command('imprint:shopify-calendar')->everyFiveMinutes()->withoutOverlapping();

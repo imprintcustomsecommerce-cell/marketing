@@ -40,6 +40,12 @@ Route::middleware('internal.host')->group(function (): void {
             Route::patch('/events/{event}/archive', [EventController::class, 'archive'])->name('events.archive');
             Route::patch('/events/{event}/restore', [EventController::class, 'restore'])->name('events.restore');
             Route::post('/events/{event}/request-coverage', [EventController::class, 'requestCoverage'])->name('events.request-coverage');
+            // Sends the diary to the website now instead of waiting for the
+            // five-minute run. Throttled because it is a round trip to Shopify
+            // and the button invites a second press while the first is working.
+            Route::post('/events/sync-website', [EventController::class, 'syncWebsite'])
+                ->middleware('throttle:6,1')
+                ->name('events.sync-website');
             // Deleting an event takes its coverage, production tasks, and
             // uploaded files with it and cannot be undone, so it is the
             // administrator's call. Archiving stays open to all of marketing.

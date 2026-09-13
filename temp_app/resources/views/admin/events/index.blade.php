@@ -81,6 +81,10 @@
         .table-card table{display:none}
         .table-card .ev-cards{display:block}
     }
+    /* The two controls sit together and wrap as a pair on a narrow screen,
+       rather than the sync button dropping under the heading on its own. */
+    .page-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .page-head-actions form{margin:0}
 </style>
 
 <div class="topline">
@@ -95,7 +99,16 @@
             @endif
         </div>
     </div>
-    <a class="button" href="{{ route('admin.events.create') }}">+ Add event</a>
+    <div class="page-head-actions">
+        {{-- The diary reaches the website on its own every five minutes; this is
+             for when somebody has just changed something and wants to see it
+             there now. --}}
+        <form method="POST" action="{{ route('admin.events.sync-website') }}">
+            @csrf
+            <button type="submit" class="button ghost">Update website calendar</button>
+        </form>
+        <a class="button" href="{{ route('admin.events.create') }}">+ Add event</a>
+    </div>
 </div>
 
 <div class="list-head">
@@ -164,7 +177,10 @@
                 // before the handoff existed. Calling that "with multimedia"
                 // would claim a request that was never sent, so it gets the
                 // button instead.
-                $waiting = $event->coverage?->isRequested() ?? false;
+                // Handed over and live, but nobody has put their name to it yet. There
+                // is no request stage any more, so "with multimedia" means exactly
+                // this rather than "sent and unanswered".
+                $waiting = ($event->coverage?->isAccepted() ?? false) && $event->coverage?->shooter_id === null;
                 $declined = $event->coverage?->stage === App\Support\CoverageDesk::DECLINED;
                 $neverSent = $event->coverage === null;
             @endphp
@@ -226,7 +242,10 @@
                 // before the handoff existed. Calling that "with multimedia"
                 // would claim a request that was never sent, so it gets the
                 // button instead.
-                $waiting = $event->coverage?->isRequested() ?? false;
+                // Handed over and live, but nobody has put their name to it yet. There
+                // is no request stage any more, so "with multimedia" means exactly
+                // this rather than "sent and unanswered".
+                $waiting = ($event->coverage?->isAccepted() ?? false) && $event->coverage?->shooter_id === null;
                 $declined = $event->coverage?->stage === App\Support\CoverageDesk::DECLINED;
                 $neverSent = $event->coverage === null;
             @endphp

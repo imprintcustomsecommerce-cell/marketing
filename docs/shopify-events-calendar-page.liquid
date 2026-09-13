@@ -1,0 +1,231 @@
+{% comment %}
+  Imprint Customs — full events calendar, for its own page.
+
+  The Events Board on the home page is the short version; this is what the
+  "View full calendar" arrow points at. Both read the same "Event" metaobject
+  that Imprint Hub keeps up to date, so neither depends on the shop machine
+  being switched on.
+
+  HOW TO ADD IT
+    1. Shopify admin → Online Store → Themes → ⋯ → Edit code
+    2. Sections → Add a new section → name it "events-calendar-page"
+    3. Replace everything in the new file with this file's contents, and save
+    4. Online Store → Pages → Add page → title it "Events" → save
+    5. Themes → Customize → pick the Events page → Add section → "Events calendar"
+    6. Point the Events Board's Link field at that page
+
+  The month grid is drawn in the browser from the list below it, so months can
+  be paged without a page load. With scripting off the list is still there and
+  readable, which is the part that matters.
+{% endcomment %}
+
+{%- comment -%}
+  Sorting on "date" reads a metafield object rather than a plain value, and
+  Liquid answers that with an empty array rather than an error. The sort is kept
+  only when it gives back the same number of entries it was handed.
+{%- endcomment -%}
+{%- assign all_events = shop.metaobjects.event.values -%}
+{%- assign sorted_events = all_events | sort: "date" -%}
+{%- if sorted_events.size == all_events.size -%}
+  {%- assign events = sorted_events -%}
+{%- else -%}
+  {%- assign events = all_events -%}
+{%- endif -%}
+
+<div class="imprint-cal" id="imprint-cal-{{ section.id }}">
+  {%- if section.settings.heading != blank -%}
+    <h2 class="imprint-cal__heading">{{ section.settings.heading }}</h2>
+  {%- endif -%}
+
+  {%- if events.size == 0 -%}
+    <p class="imprint-cal__empty">{{ section.settings.empty_text }}</p>
+  {%- else -%}
+    <div class="imprint-cal__head">
+      <button type="button" class="imprint-cal__nav" data-move="-1" aria-label="Previous month">&#8249;</button>
+      <strong class="imprint-cal__month" data-month-label></strong>
+      <button type="button" class="imprint-cal__nav" data-move="1" aria-label="Next month">&#8250;</button>
+    </div>
+
+    <div class="imprint-cal__grid" data-grid hidden></div>
+
+    {%- comment -%}
+      The plain list is what renders without scripting, and what the grid is
+      built from — so the grid can never show something the page does not say.
+      Dates stay in ISO form in the data attributes: no parsing display strings.
+    {%- endcomment -%}
+    <ul class="imprint-cal__list" data-list>
+      {%- for event in events -%}
+        <li class="imprint-cal__item"
+            data-date="{{ event.date.value }}"
+            data-end="{{ event.end_date.value | default: event.date.value }}">
+          <span class="imprint-cal__date">
+            {{ event.date.value | date: "%b %-d, %Y" }}
+            {%- if event.end_date.value != blank and event.end_date.value != event.date.value -%}
+              &ndash; {{ event.end_date.value | date: "%b %-d" }}
+            {%- endif -%}
+          </span>
+          <span class="imprint-cal__title">{{ event.title }}</span>
+          <span class="imprint-cal__meta">
+            {%- if event.start_time != blank -%}
+              {{ event.start_time }}{%- if event.end_time != blank %}&ndash;{{ event.end_time }}{% endif -%}
+            {%- endif -%}
+            {%- if event.venue != blank %} · {{ event.venue }}{% endif -%}
+            {%- if event.type_label != blank %} · {{ event.type_label }}{% endif -%}
+          </span>
+          {%- if event.summary != blank -%}
+            <span class="imprint-cal__summary">{{ event.summary }}</span>
+          {%- endif -%}
+        </li>
+      {%- endfor -%}
+    </ul>
+  {%- endif -%}
+</div>
+
+<style>
+  #imprint-cal-{{ section.id }} { max-width: 940px; margin: 0 auto; padding: 34px 16px 44px; }
+  #imprint-cal-{{ section.id }} .imprint-cal__heading {
+    font-size: clamp(1.9rem, 4.5vw, 3rem); font-weight: 800; margin: 0 0 22px;
+    color: {{ section.settings.heading_colour }};
+  }
+  #imprint-cal-{{ section.id }} .imprint-cal__head {
+    display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 14px;
+  }
+  #imprint-cal-{{ section.id }} .imprint-cal__nav {
+    border: 1px solid currentColor; background: none; color: inherit; cursor: pointer;
+    width: 36px; height: 36px; border-radius: 50%; font-size: 19px; line-height: 1;
+  }
+  #imprint-cal-{{ section.id }} .imprint-cal__month { font-size: 1.1rem; min-width: 12ch; text-align: center; }
+
+  #imprint-cal-{{ section.id }} .imprint-cal__grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 26px;
+  }
+  #imprint-cal-{{ section.id }} .imprint-cal__dow {
+    text-align: center; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+    opacity: .6; padding-bottom: 4px;
+  }
+  #imprint-cal-{{ section.id }} .imprint-cal__cell {
+    min-height: 78px; border: 1px solid rgba(128,128,128,.25); border-radius: 8px;
+    padding: 5px 6px; font-size: .78rem;
+  }
+  #imprint-cal-{{ section.id }} .imprint-cal__cell--empty { border-color: transparent; }
+  #imprint-cal-{{ section.id }} .imprint-cal__cell--today { outline: 2px solid {{ section.settings.accent }}; }
+  #imprint-cal-{{ section.id }} .imprint-cal__day { font-weight: 700; opacity: .65; }
+  #imprint-cal-{{ section.id }} .imprint-cal__tag {
+    display: block; margin-top: 3px; padding: 2px 5px; border-radius: 4px; font-weight: 600;
+    background: {{ section.settings.accent }}; color: {{ section.settings.accent_text }};
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  #imprint-cal-{{ section.id }} .imprint-cal__list { list-style: none; margin: 0; padding: 0; }
+  #imprint-cal-{{ section.id }} .imprint-cal__item {
+    display: grid; gap: 2px; padding: 13px 0; border-bottom: 1px solid rgba(128,128,128,.2);
+  }
+  #imprint-cal-{{ section.id }} .imprint-cal__item:last-child { border-bottom: 0; }
+  #imprint-cal-{{ section.id }} .imprint-cal__date { font-size: .78rem; font-weight: 800; color: {{ section.settings.accent }}; }
+  #imprint-cal-{{ section.id }} .imprint-cal__title { font-size: 1.02rem; font-weight: 700; }
+  #imprint-cal-{{ section.id }} .imprint-cal__meta { font-size: .82rem; opacity: .7; }
+  #imprint-cal-{{ section.id }} .imprint-cal__summary { font-size: .88rem; margin-top: 3px; }
+  #imprint-cal-{{ section.id }} .imprint-cal__empty { text-align: center; opacity: .7; }
+
+  @media (max-width: 640px) {
+    #imprint-cal-{{ section.id }} .imprint-cal__cell { min-height: 54px; font-size: .68rem; }
+  }
+</style>
+
+<script>
+  (function () {
+    var root = document.getElementById('imprint-cal-{{ section.id }}');
+    if (!root) return;
+
+    var list = root.querySelector('[data-list]');
+    var grid = root.querySelector('[data-grid]');
+    var label = root.querySelector('[data-month-label]');
+    if (!list || !grid || !label) return;
+
+    var events = Array.prototype.map.call(list.querySelectorAll('.imprint-cal__item'), function (item) {
+      return {
+        start: item.dataset.date,
+        end: item.dataset.end || item.dataset.date,
+        title: item.querySelector('.imprint-cal__title').textContent.trim()
+      };
+    }).filter(function (event) { return event.start; });
+
+    if (!events.length) return;
+
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function iso(date) { return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()); }
+    function parseISO(value) { var p = value.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+    function escapeHtml(value) {
+      return value.replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    var todayKey = iso(new Date());
+    // Open on the month of the next event, not today: an empty grid is a poor
+    // first impression when the next ride-out is three weeks off.
+    var upcoming = events.filter(function (e) { return e.end >= todayKey; })
+      .sort(function (a, b) { return a.start < b.start ? -1 : 1; })[0];
+    var focus = upcoming ? parseISO(upcoming.start) : new Date();
+    var year = focus.getFullYear();
+    var month = focus.getMonth();
+
+    function render() {
+      var first = new Date(year, month, 1);
+      var daysInMonth = new Date(year, month + 1, 0).getDate();
+      var offset = (first.getDay() + 6) % 7; // Monday-first, as the shop's week reads.
+
+      label.textContent = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+      var html = '';
+      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(function (day) {
+        html += '<div class="imprint-cal__dow">' + day + '</div>';
+      });
+
+      for (var blank = 0; blank < offset; blank++) {
+        html += '<div class="imprint-cal__cell imprint-cal__cell--empty"></div>';
+      }
+
+      for (var day = 1; day <= daysInMonth; day++) {
+        var key = year + '-' + pad(month + 1) + '-' + pad(day);
+        // A multi-day event shows on every day it covers, not just its first.
+        var onThisDay = events.filter(function (e) { return e.start <= key && e.end >= key; });
+        var classes = 'imprint-cal__cell' + (key === todayKey ? ' imprint-cal__cell--today' : '');
+
+        html += '<div class="' + classes + '"><span class="imprint-cal__day">' + day + '</span>';
+        onThisDay.forEach(function (e) {
+          html += '<span class="imprint-cal__tag" title="' + escapeHtml(e.title) + '">' + escapeHtml(e.title) + '</span>';
+        });
+        html += '</div>';
+      }
+
+      grid.innerHTML = html;
+      grid.hidden = false;
+    }
+
+    root.querySelectorAll('[data-move]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        month += parseInt(button.dataset.move, 10);
+        if (month < 0) { month = 11; year--; }
+        if (month > 11) { month = 0; year++; }
+        render();
+      });
+    });
+
+    render();
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Events calendar",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Events calendar" },
+    { "type": "text", "id": "empty_text", "label": "Text when there are no events", "default": "No events are scheduled at the moment. Check back soon." },
+    { "type": "color", "id": "heading_colour", "label": "Heading colour", "default": "#111111" },
+    { "type": "color", "id": "accent", "label": "Accent colour", "default": "#F2C230" },
+    { "type": "color", "id": "accent_text", "label": "Text on the accent colour", "default": "#1c1206" }
+  ],
+  "presets": [{ "name": "Events calendar" }]
+}
+{% endschema %}

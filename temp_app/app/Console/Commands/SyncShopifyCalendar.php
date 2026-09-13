@@ -27,7 +27,7 @@ class SyncShopifyCalendar extends Command
     protected $description = 'Send events marked for the website to the Shopify calendar';
 
     /** The fields written to each entry, in the order the definition lists them. */
-    private const FIELDS = ['title', 'date', 'end_date', 'start_time', 'end_time', 'venue', 'type_label', 'summary'];
+    private const FIELDS = ['title', 'date', 'end_date', 'start_time', 'end_time', 'venue', 'organization', 'type_label', 'summary'];
 
     public function handle(ShopifyStore $shopify): int
     {
@@ -62,7 +62,12 @@ class SyncShopifyCalendar extends Command
         foreach ($wanted as $handle => $event) {
             $fields = $this->fieldsFor($event);
 
-            if (isset($existing[$handle]) && $this->matches($existing[$handle]['fields'], $fields)) {
+            // A draft left over from before the status was set has to be
+            // rewritten even when every field already matches, or it stays
+            // invisible to the storefront for good.
+            if (isset($existing[$handle])
+                && $existing[$handle]['status'] === 'ACTIVE'
+                && $this->matches($existing[$handle]['fields'], $fields)) {
                 continue;
             }
 
@@ -136,7 +141,7 @@ class SyncShopifyCalendar extends Command
     /**
      * What the website already holds, keyed by handle.
      *
-     * @return array<string,array{id:string,fields:array<string,string>}>
+     * @return array<string,array{id:string,status:string,fields:array<string,string>}>
      */
     private function existingEntries(ShopifyStore $shopify, string $type): array
     {
@@ -147,7 +152,7 @@ class SyncShopifyCalendar extends Command
             $data = $shopify->graphql(
                 'query($type: String!, $after: String) {
                     metaobjects(type: $type, first: 100, after: $after) {
-                        nodes { id handle fields { key value } }
+                        nodes { id handle capabilities { publishable { status } } fields { key value } }
                         pageInfo { hasNextPage endCursor }
                     }
                 }',
@@ -165,6 +170,9 @@ class SyncShopifyCalendar extends Command
 
                 $entries[$node['handle']] = [
                     'id' => $node['id'],
+                    // A definition without active-draft status reports none, and
+                    // everything under it is live — so that reads as ACTIVE.
+                    'status' => $node['capabilities']['publishable']['status'] ?? 'ACTIVE',
                     'fields' => collect($node['fields'])->mapWithKeys(fn ($field) => [$field['key'] => (string) ($field['value'] ?? '')])->all(),
                 ];
             }
@@ -190,23 +198,33 @@ class SyncShopifyCalendar extends Command
         return true;
     }
 
-    /** @param  array<string,string>  $fields */
+    /**
+     * Written active, not draft.
+     *
+     * A definition with active-draft status turned on gives an entry created
+     * over the API the draft status by default, and Liquid skips drafts — so
+     * the sync reported success while the storefront stayed empty. Saying it
+     * outright on every write is what stops that being silent.
+     *
+     * @param  array<string,string>  $fields
+     */
     private function upsert(ShopifyStore $shopify, string $type, string $handle, array $fields, ?string $id): void
     {
         $payload = collect($fields)->map(fn ($value, $key) => ['key' => $key, 'value' => $value])->values()->all();
+        $capabilities = ['publishable' => ['status' => 'ACTIVE']];
 
         $data = $id
             ? $shopify->graphql(
                 'mutation($id: ID!, $metaobject: MetaobjectUpdateInput!) {
                     metaobjectUpdate(id: $id, metaobject: $metaobject) { userErrors { field message } }
                 }',
-                ['id' => $id, 'metaobject' => ['fields' => $payload]],
+                ['id' => $id, 'metaobject' => ['fields' => $payload, 'capabilities' => $capabilities]],
             )
             : $shopify->graphql(
                 'mutation($metaobject: MetaobjectCreateInput!) {
                     metaobjectCreate(metaobject: $metaobject) { userErrors { field message } }
                 }',
-                ['metaobject' => ['type' => $type, 'handle' => $handle, 'fields' => $payload]],
+                ['metaobject' => ['type' => $type, 'handle' => $handle, 'fields' => $payload, 'capabilities' => $capabilities]],
             );
 
         $errors = $data['metaobjectUpdate']['userErrors'] ?? $data['metaobjectCreate']['userErrors'] ?? [];

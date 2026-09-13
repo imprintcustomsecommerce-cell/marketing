@@ -1,0 +1,544 @@
+{% comment %}
+  Imprint Customs — events board and calendar, as one sliding section.
+
+  Reads the "Event" metaobject that Imprint Hub keeps up to date. Nothing is
+  fetched at runtime: Liquid renders what Shopify already holds, so the section
+  does not depend on the shop machine being switched on.
+
+  Two views on one pager, the way the theme's slideshow works — the yellow board
+  first, the month grid second, arrows and dots moving between them. The grid
+  carries its own month arrows, so paging through months never leaves the view.
+
+  With scripting off both views render stacked down the page. The arrows are the
+  convenience, not the content.
+
+  HOW TO ADD IT
+    1. Shopify admin -> Online Store -> Themes -> Edit code
+    2. Sections -> Add a new section -> name it "events-calendar"
+    3. Replace everything in the new file with this file's contents, and save
+    4. Themes -> Customize -> Home page -> Add section -> "Events board"
+
+  The separate "Events calendar" section is no longer needed — remove it.
+{% endcomment %}
+
+{%- comment -%}
+  Sorting on "date" reads a metafield object rather than a plain value, and
+  Liquid answers that with an empty array rather than an error — which showed as
+  an empty board with no clue why. The sort is kept only when it gives back the
+  same number of entries it was handed.
+{%- endcomment -%}
+{%- assign all_events = shop.metaobjects.event.values -%}
+{%- assign sorted_events = all_events | sort: "date" -%}
+{%- if sorted_events.size == all_events.size -%}
+  {%- assign events = sorted_events -%}
+{%- else -%}
+  {%- assign events = all_events -%}
+{%- endif -%}
+
+<div class="imprint-ev" id="imprint-ev-{{ section.id }}">
+  {%- if section.settings.heading != blank -%}
+    <h2 class="imprint-ev__heading">{{ section.settings.heading }}</h2>
+  {%- endif -%}
+
+  {%- if events.size == 0 -%}
+    <p class="imprint-ev__empty">{{ section.settings.empty_text }}</p>
+    {%- if section.settings.show_diagnostics -%}
+      <p class="imprint-ev__empty" style="font-size:.8rem">
+        Diagnostics — found: {{ all_events.size }} · after sorting: {{ sorted_events.size }} · type: event
+      </p>
+    {%- endif -%}
+  {%- else -%}
+
+    {%- comment -%} View one: the board. {%- endcomment -%}
+    <section class="imprint-ev__view" data-view data-view-name="Board">
+      {%- comment -%}
+        Grouped in one pass: the list is already in date order, so a new card
+        starts whenever the month changes rather than looping twelve times.
+      {%- endcomment -%}
+      {%- assign current_month = "" -%}
+      {%- assign open_card = false -%}
+
+      {%- for event in events -%}
+        {%- assign month_key = event.date.value | date: "%Y-%m" -%}
+
+        {%- if month_key != current_month -%}
+          {%- if open_card -%}
+            </div></div>
+          {%- endif -%}
+          <div class="imprint-ev__card">
+            <h3 class="imprint-ev__month">{{ event.date.value | date: "%B" }}</h3>
+            <div class="imprint-ev__rows">
+          {%- assign current_month = month_key -%}
+          {%- assign open_card = true -%}
+        {%- endif -%}
+
+        {%- comment -%}
+          "4-5" for a run of days, plain "18" for one. A range crossing into the
+          next month still reads from its own card, which is where it starts.
+        {%- endcomment -%}
+        {%- assign start_day = event.date.value | date: "%-d" -%}
+        {%- assign day_label = start_day -%}
+        {%- if event.end_date.value != blank and event.end_date.value != event.date.value -%}
+          {%- assign end_day = event.end_date.value | date: "%-d" -%}
+          {%- assign day_label = start_day | append: "-" | append: end_day -%}
+        {%- endif -%}
+
+        {%- comment -%}
+          Two columns, not a run-on line: the day sits in its own track so every
+          title starts at the same place whether the date reads "4" or "23-26".
+          The venue moves down beside the organiser — in brackets it was being
+          read as part of the event's name.
+        {%- endcomment -%}
+        <div class="imprint-ev__row">
+          <span class="imprint-ev__day">{{ day_label }}</span>
+          <span class="imprint-ev__detail">
+            <span class="imprint-ev__event">{{ event.title }}</span>
+            {%- if event.organization != blank or event.venue != blank -%}
+              <span class="imprint-ev__org">
+                {%- if event.organization != blank %}{{ event.organization }}{% endif -%}
+                {%- if event.organization != blank and event.venue != blank %} <span class="imprint-ev__sep">&middot;</span> {% endif -%}
+                {%- if event.venue != blank %}{{ event.venue }}{% endif -%}
+              </span>
+            {%- endif -%}
+          </span>
+        </div>
+      {%- endfor -%}
+
+      {%- if open_card -%}
+        </div></div>
+      {%- endif -%}
+    </section>
+
+    {%- comment -%} View two: the calendar. {%- endcomment -%}
+    <section class="imprint-ev__view" data-view data-view-name="Calendar">
+      <div class="imprint-ev__card imprint-ev__card--cal">
+        <div class="imprint-ev__calhead" data-calhead hidden>
+          <button type="button" class="imprint-ev__nav" data-month-move="-1" aria-label="Previous month">&#8249;</button>
+          <strong class="imprint-ev__callabel" data-month-label></strong>
+          <button type="button" class="imprint-ev__nav" data-month-move="1" aria-label="Next month">&#8250;</button>
+        </div>
+
+        <div class="imprint-ev__grid" data-grid hidden></div>
+      </div>
+
+      {%- comment -%}
+        The list is where the grid reads its dates from, so it stays in the
+        markup and is hidden once scripting takes over. Dates stay in ISO form
+        in the data attributes: no parsing display strings. With no scripting it
+        is the whole calendar, which is why it is not simply dropped.
+      {%- endcomment -%}
+      <ul class="imprint-ev__list" data-list>
+        {%- for event in events -%}
+          <li class="imprint-ev__item"
+              data-date="{{ event.date.value }}"
+              data-end="{{ event.end_date.value | default: event.date.value }}"
+              data-org="{{ event.organization | escape }}"
+              data-venue="{{ event.venue | escape }}"
+              data-time="{%- if event.start_time != blank -%}{{ event.start_time }}{%- if event.end_time != blank %}&ndash;{{ event.end_time }}{% endif -%}{%- endif -%}">
+            <span class="imprint-ev__itemdate">
+              {{ event.date.value | date: "%b %-d, %Y" }}
+              {%- if event.end_date.value != blank and event.end_date.value != event.date.value -%}
+                &ndash; {{ event.end_date.value | date: "%b %-d" }}
+              {%- endif -%}
+            </span>
+            <span class="imprint-ev__itemtitle">{{ event.title }}</span>
+            <span class="imprint-ev__itemmeta">
+              {%- if event.organization != blank %}{{ event.organization }} · {% endif -%}
+              {%- if event.venue != blank %}{{ event.venue }}{% endif -%}
+            </span>
+          </li>
+        {%- endfor -%}
+      </ul>
+    </section>
+
+    {%- comment -%}
+      Hidden until the script takes over: without it both views are on screen
+      already and there is nothing to move between.
+    {%- endcomment -%}
+    <div class="imprint-ev__pager" data-pager hidden>
+      <button type="button" class="imprint-ev__arrow" data-move="-1" aria-label="Previous view">&#8249;</button>
+      <div class="imprint-ev__dots" data-dots></div>
+      <button type="button" class="imprint-ev__arrow" data-move="1" aria-label="Next view">&#8250;</button>
+    </div>
+  {%- endif -%}
+</div>
+
+<style>
+  #imprint-ev-{{ section.id }} {
+    max-width: {{ section.settings.width }}px;
+    margin: 0 auto;
+    padding: 34px 16px 44px;
+    /* Every size below is a multiple of this, so the Text size slider moves the
+       whole section together rather than one part of it. */
+    --ev-scale: {{ section.settings.text_scale | divided_by: 100.0 }};
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__heading {
+    font-size: calc(clamp(2.6rem, 6vw, 4.4rem) * var(--ev-scale));
+    font-weight: 800;
+    letter-spacing: -.02em;
+    margin: 0 0 22px;
+    color: {{ section.settings.heading_colour }};
+  }
+
+  /* Stacked by default, so both views are readable without scripting. The
+     script sets data-enhanced on the root and the pager takes over. */
+  #imprint-ev-{{ section.id }} .imprint-ev__view { margin-bottom: 26px; }
+  #imprint-ev-{{ section.id }}[data-enhanced] .imprint-ev__view { margin-bottom: 0; display: none; }
+  #imprint-ev-{{ section.id }}[data-enhanced] .imprint-ev__view.is-active { display: block; }
+
+  #imprint-ev-{{ section.id }} .imprint-ev__card {
+    background: {{ section.settings.card_colour }};
+    color: {{ section.settings.text_colour }};
+    border: 1px solid {{ section.settings.border_colour }};
+    border-radius: 22px;
+    padding: 26px 32px 30px;
+    margin: 0 auto 16px;
+    max-width: 720px;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__card:last-child { margin-bottom: 0; }
+  #imprint-ev-{{ section.id }} .imprint-ev__month {
+    margin: 0 0 14px;
+    font-size: calc(2.1rem * var(--ev-scale));
+    font-weight: 800;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0 14px;
+    align-items: baseline;
+    padding: 11px 0;
+    line-height: 1.35;
+    font-size: calc(1.22rem * var(--ev-scale));
+    /* A hairline of the card's own ink, so rows separate without a rule that
+       competes with the text sitting on it. */
+    border-top: 1px solid rgba(0, 0, 0, .12);
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__row:first-of-type { border-top: 0; padding-top: 0; }
+  #imprint-ev-{{ section.id }} .imprint-ev__row:last-child { padding-bottom: 0; }
+  #imprint-ev-{{ section.id }} .imprint-ev__day {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    /* Wide enough for "23-26", so single days and ranges share one edge. */
+    min-width: 3.4ch;
+    text-align: right;
+    /* Keeps "11-12" from wrapping away from its event. */
+    white-space: nowrap;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__detail { display: block; }
+  #imprint-ev-{{ section.id }} .imprint-ev__event { display: block; font-weight: 600; }
+  /* The organiser reads as a credit under the event, not as part of its name —
+     a line the eye can skip when it is scanning for dates. */
+  #imprint-ev-{{ section.id }} .imprint-ev__org {
+    display: block;
+    margin-top: 2px;
+    font-size: calc(.86rem * var(--ev-scale));
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    opacity: .65;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__sep { opacity: .5; }
+
+  #imprint-ev-{{ section.id }} .imprint-ev__calhead {
+    display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 18px;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__calhead[hidden] { display: none; }
+  #imprint-ev-{{ section.id }} .imprint-ev__nav {
+    border: 0; background: rgba(255, 255, 255, .45); color: inherit; cursor: pointer;
+    width: 34px; height: 34px; border-radius: 50%; font-size: 18px; line-height: 1;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__nav:hover { background: rgba(255, 255, 255, .75); }
+  #imprint-ev-{{ section.id }} .imprint-ev__callabel {
+    font-size: calc(1.5rem * var(--ev-scale)); font-weight: 800;
+    min-width: 12ch; text-align: center;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__grid {
+    display: grid;
+    /* minmax(0, 1fr) rather than 1fr: a grid track will not shrink below its
+       content, so one long event title stretched its day and squashed the rest
+       of the week. The floor of zero is what keeps the seven columns equal and
+       lets the tag ellipsis do its job. */
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 0;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__grid[hidden] { display: none; }
+  #imprint-ev-{{ section.id }} .imprint-ev__dow {
+    text-align: center; font-size: .68rem; text-transform: uppercase; letter-spacing: .1em;
+    font-weight: 800; opacity: .55; padding-bottom: 2px;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__card--cal { max-width: 720px; }
+  #imprint-ev-{{ section.id }} .imprint-ev__cell {
+    min-height: 76px;
+    /* A pale tile rather than an outline: on a saturated card, borders alone
+       read as a wire mesh and the days stop looking like days. */
+    background: rgba(255, 255, 255, .34);
+    border: 0;
+    border-radius: 10px;
+    padding: 6px 7px;
+    font-size: .78rem;
+    /* Without this the tag's ellipsis never triggers inside a grid item. */
+    min-width: 0;
+    overflow: hidden;
+    position: relative;
+  }
+  /* Clipping is what truncates the tag, so it has to be lifted for the tip to
+     escape its day — and the day lifted above its neighbours while it is. */
+  #imprint-ev-{{ section.id }} .imprint-ev__cell:hover { overflow: visible; z-index: 5; }
+  #imprint-ev-{{ section.id }} .imprint-ev__cell--empty { background: none; }
+  /* Today is ringed inside its own tile: an outline sat on top of the gap and
+     made one day look bolted to the page. */
+  #imprint-ev-{{ section.id }} .imprint-ev__cell--today {
+    background: rgba(255, 255, 255, .62);
+    box-shadow: inset 0 0 0 2px {{ section.settings.today_colour }};
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__cell--today .imprint-ev__cellday {
+    color: {{ section.settings.today_colour }};
+    opacity: 1;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__cellday {
+    display: block; font-weight: 700; font-size: .8rem; opacity: .8; margin-bottom: 2px;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__evt { display: block; position: relative; }
+  #imprint-ev-{{ section.id }} .imprint-ev__tip {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 7px);
+    z-index: 6;
+    display: none;
+    width: max-content;
+    max-width: 250px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: {{ section.settings.text_colour }};
+    color: {{ section.settings.card_colour }};
+    font-size: .74rem;
+    font-weight: 600;
+    line-height: 1.35;
+    white-space: normal;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__evt:hover .imprint-ev__tip { display: block; }
+  #imprint-ev-{{ section.id }} .imprint-ev__tiptitle { display: block; font-size: .82rem; margin-bottom: 3px; }
+  #imprint-ev-{{ section.id }} .imprint-ev__tipline { display: block; font-weight: 500; opacity: .8; }
+  /* Pulled back inside the card when the day sits at the right-hand edge. */
+  #imprint-ev-{{ section.id }} .imprint-ev__cell:nth-child(7n) .imprint-ev__tip,
+  #imprint-ev-{{ section.id }} .imprint-ev__cell:nth-child(7n-1) .imprint-ev__tip { left: auto; right: 0; }
+  #imprint-ev-{{ section.id }} .imprint-ev__tag {
+    display: block; margin-top: 3px; padding: 3px 6px; border-radius: 6px;
+    font-weight: 600; font-size: .68rem; line-height: 1.25;
+    background: {{ section.settings.text_colour }}; color: {{ section.settings.card_colour }};
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  #imprint-ev-{{ section.id }} .imprint-ev__list { list-style: none; margin: 0; padding: 0; }
+  #imprint-ev-{{ section.id }}[data-enhanced] .imprint-ev__list { display: none; }
+  #imprint-ev-{{ section.id }} .imprint-ev__item {
+    display: grid; gap: 2px; padding: 13px 0; border-bottom: 1px solid rgba(128,128,128,.2);
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__item:last-child { border-bottom: 0; }
+  #imprint-ev-{{ section.id }} .imprint-ev__itemdate {
+    font-size: .78rem; font-weight: 800; color: {{ section.settings.border_colour }};
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__itemtitle { font-size: calc(1.02rem * var(--ev-scale)); font-weight: 700; }
+  #imprint-ev-{{ section.id }} .imprint-ev__itemmeta { font-size: .82rem; opacity: .7; }
+  #imprint-ev-{{ section.id }} .imprint-ev__empty { text-align: center; opacity: .7; }
+
+  #imprint-ev-{{ section.id }} .imprint-ev__pager {
+    display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__pager[hidden] { display: none; }
+  #imprint-ev-{{ section.id }} .imprint-ev__arrow {
+    border: 0; background: none; color: {{ section.settings.heading_colour }};
+    cursor: pointer; font-size: 22px; line-height: 1; padding: 4px 8px;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__arrow[disabled] { opacity: .3; cursor: default; }
+  #imprint-ev-{{ section.id }} .imprint-ev__dots { display: flex; gap: 9px; align-items: center; }
+  #imprint-ev-{{ section.id }} .imprint-ev__dot {
+    width: 9px; height: 9px; border-radius: 50%; padding: 0;
+    border: 1px solid {{ section.settings.heading_colour }};
+    background: none; cursor: pointer;
+  }
+  #imprint-ev-{{ section.id }} .imprint-ev__dot[aria-current="true"] { background: {{ section.settings.heading_colour }}; }
+
+  @media (max-width: 640px) {
+    #imprint-ev-{{ section.id }} .imprint-ev__card { padding: 20px 20px 22px; border-radius: 16px; }
+    #imprint-ev-{{ section.id }} .imprint-ev__row { font-size: calc(1.06rem * var(--ev-scale)); }
+    #imprint-ev-{{ section.id }} .imprint-ev__month { font-size: calc(1.55rem * var(--ev-scale)); }
+    #imprint-ev-{{ section.id }} .imprint-ev__cell { min-height: 52px; padding: 4px 5px; }
+    #imprint-ev-{{ section.id }} .imprint-ev__tag { font-size: .58rem; padding: 2px 4px; }
+    #imprint-ev-{{ section.id }} .imprint-ev__grid { gap: 4px; }
+  }
+</style>
+
+<script>
+  (function () {
+    var root = document.getElementById('imprint-ev-{{ section.id }}');
+    if (!root) return;
+
+    var views = Array.prototype.slice.call(root.querySelectorAll('[data-view]'));
+    var pager = root.querySelector('[data-pager]');
+    var dots = root.querySelector('[data-dots]');
+    if (views.length < 2 || !pager || !dots) return;
+
+    // Hiding is done here rather than in the markup, so a visitor without
+    // scripting still gets both views down the page.
+    root.setAttribute('data-enhanced', 'true');
+
+    /* The calendar grid. */
+    var list = root.querySelector('[data-list]');
+    var grid = root.querySelector('[data-grid]');
+    var calhead = root.querySelector('[data-calhead]');
+    var label = root.querySelector('[data-month-label]');
+
+    function textOf(item, selector) {
+      var found = item.querySelector(selector);
+      return found ? found.textContent.replace(/\s+/g, ' ').trim() : '';
+    }
+
+    var entries = Array.prototype.map.call(list.querySelectorAll('.imprint-ev__item'), function (item) {
+      return {
+        start: item.dataset.date,
+        end: item.dataset.end || item.dataset.date,
+        title: textOf(item, '.imprint-ev__itemtitle'),
+        org: item.dataset.org || '',
+        venue: item.dataset.venue || '',
+        time: item.dataset.time || '',
+        when: textOf(item, '.imprint-ev__itemdate')
+      };
+    }).filter(function (entry) { return entry.start; });
+
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function iso(date) { return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()); }
+    function parseISO(value) { var parts = value.split('-'); return new Date(+parts[0], +parts[1] - 1, +parts[2]); }
+    function escapeHtml(value) {
+      return value.replace(/[&<>"']/g, function (character) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character];
+      });
+    }
+
+    var todayKey = iso(new Date());
+    // Open on the month of the next event, not today: an empty grid is a poor
+    // first impression when the next ride-out is three weeks off.
+    var upcoming = entries.filter(function (entry) { return entry.end >= todayKey; })
+      .sort(function (a, b) { return a.start < b.start ? -1 : 1; })[0];
+    var focus = upcoming ? parseISO(upcoming.start) : new Date();
+    var year = focus.getFullYear();
+    var month = focus.getMonth();
+
+    function renderGrid() {
+      var first = new Date(year, month, 1);
+      var daysInMonth = new Date(year, month + 1, 0).getDate();
+      var offset = (first.getDay() + 6) % 7; // Monday-first, as the shop's week reads.
+
+      label.textContent = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+      var html = '';
+      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(function (day) {
+        html += '<div class="imprint-ev__dow">' + day + '</div>';
+      });
+
+      for (var blank = 0; blank < offset; blank++) {
+        html += '<div class="imprint-ev__cell imprint-ev__cell--empty"></div>';
+      }
+
+      for (var day = 1; day <= daysInMonth; day++) {
+        var key = year + '-' + pad(month + 1) + '-' + pad(day);
+        // A multi-day event shows on every day it covers, not just its first.
+        var onThisDay = entries.filter(function (entry) { return entry.start <= key && entry.end >= key; });
+        var classes = 'imprint-ev__cell' + (key === todayKey ? ' imprint-ev__cell--today' : '');
+
+        html += '<div class="' + classes + '"><span class="imprint-ev__cellday">' + day + '</span>';
+        onThisDay.forEach(function (entry) {
+          // The tag is clipped to its day; the tip beside it carries the whole
+          // name and is what hovering reveals. The native title tooltip is left
+          // off — it waits a second, cannot be styled, and never shows on touch.
+          var tip = '<strong class="imprint-ev__tiptitle">' + escapeHtml(entry.title) + '</strong>';
+          if (entry.org) tip += '<span class="imprint-ev__tipline">' + escapeHtml(entry.org) + '</span>';
+          if (entry.venue) tip += '<span class="imprint-ev__tipline">' + escapeHtml(entry.venue) + '</span>';
+          // Date and time on one line: two short facts that read as one.
+          var whenLine = [entry.when, entry.time].filter(Boolean).join(' · ');
+          if (whenLine) tip += '<span class="imprint-ev__tipline">' + escapeHtml(whenLine) + '</span>';
+
+          html += '<span class="imprint-ev__evt">'
+               +    '<span class="imprint-ev__tag">' + escapeHtml(entry.title) + '</span>'
+               +    '<span class="imprint-ev__tip" role="tooltip">' + tip + '</span>'
+               +  '</span>';
+        });
+        html += '</div>';
+      }
+
+      grid.innerHTML = html;
+      grid.hidden = false;
+      calhead.hidden = false;
+    }
+
+    root.querySelectorAll('[data-month-move]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        month += parseInt(button.dataset.monthMove, 10);
+        if (month < 0) { month = 11; year--; }
+        if (month > 11) { month = 0; year++; }
+        renderGrid();
+      });
+    });
+
+    if (entries.length) renderGrid();
+
+    /* Moving between the two views. */
+    var index = 0;
+
+    views.forEach(function (view, position) {
+      var dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'imprint-ev__dot';
+      dot.setAttribute('aria-label', view.dataset.viewName || 'View ' + (position + 1));
+      dot.addEventListener('click', function () { show(position); });
+      dots.appendChild(dot);
+    });
+
+    function show(position) {
+      index = Math.max(0, Math.min(views.length - 1, position));
+
+      views.forEach(function (view, viewPosition) {
+        view.classList.toggle('is-active', viewPosition === index);
+      });
+
+      Array.prototype.forEach.call(dots.children, function (dot, dotPosition) {
+        dot.setAttribute('aria-current', dotPosition === index ? 'true' : 'false');
+      });
+
+      root.querySelectorAll('[data-move]').forEach(function (button) {
+        var target = index + parseInt(button.dataset.move, 10);
+        button.disabled = target < 0 || target > views.length - 1;
+      });
+    }
+
+    root.querySelectorAll('[data-move]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        show(index + parseInt(button.dataset.move, 10));
+      });
+    });
+
+    pager.hidden = false;
+    show(0);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Events board",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Events Board" },
+    { "type": "text", "id": "empty_text", "label": "Text when there are no events", "default": "No events are scheduled at the moment. Check back soon." },
+    { "type": "checkbox", "id": "show_diagnostics", "label": "Show diagnostics when empty", "default": false },
+    { "type": "range", "id": "text_scale", "min": 80, "max": 160, "step": 5, "unit": "%", "label": "Text size", "default": 110 },
+    { "type": "range", "id": "width", "min": 700, "max": 1400, "step": 50, "unit": "px", "label": "Maximum width", "default": 1100 },
+    { "type": "color", "id": "heading_colour", "label": "Heading colour", "default": "#111111" },
+    { "type": "color", "id": "card_colour", "label": "Card colour", "default": "#F2C230" },
+    { "type": "color", "id": "border_colour", "label": "Card border colour", "default": "#D8A81C" },
+    { "type": "color", "id": "text_colour", "label": "Card text colour", "default": "#1c1206" },
+    { "type": "color", "id": "today_colour", "label": "Today marker colour", "default": "#C23B22" }
+  ],
+  "presets": [{ "name": "Events board" }]
+}
+{% endschema %}

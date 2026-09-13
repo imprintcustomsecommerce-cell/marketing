@@ -25,50 +25,49 @@ class PublicCalendarFeedTest extends TestCase
         ], $overrides));
     }
 
-    public function test_only_events_marked_for_the_website_are_published(): void
+    public function test_every_live_event_is_published(): void
     {
-        $this->event(['name' => 'Public Ride', 'is_public' => true]);
-        $this->event(['name' => 'Private Hall Booking', 'is_public' => false]);
+        $this->event(['name' => 'Public Ride']);
+        $this->event(['name' => 'Hall Booking']);
 
-        $response = $this->getJson('/client/calendar.json')->assertOk();
+        $titles = collect($this->getJson('/client/calendar.json')->assertOk()->json('events'))->pluck('title');
 
-        $titles = collect($response->json('events'))->pluck('title');
         $this->assertContains('Public Ride', $titles);
-        $this->assertNotContains('Private Hall Booking', $titles);
+        $this->assertContains('Hall Booking', $titles);
     }
 
-    public function test_publishing_is_off_unless_somebody_asks_for_it(): void
+    public function test_an_event_reaches_the_website_with_no_extra_step(): void
     {
         $admin = $this->admin();
 
         $this->actingAs($admin)->post('/admin/events', [
-            'name' => 'Quiet Booking', 'category' => 'tambike', 'event_type' => 'in_house',
+            'name' => 'New Booking', 'category' => 'tambike', 'event_type' => 'in_house',
             'event_category' => 'others', 'event_date' => today()->addWeek()->toDateString(), 'status' => 'confirmed',
         ])->assertRedirect();
 
-        $this->assertFalse(Event::where('name', 'Quiet Booking')->sole()->is_public);
+        $titles = collect($this->getJson('/client/calendar.json')->json('events'))->pluck('title');
+
+        $this->assertContains('New Booking', $titles, 'booking an event is what publishes it; there is no tick to forget');
     }
 
-    public function test_unticking_takes_an_event_back_off_the_website(): void
+    public function test_archiving_takes_an_event_back_off_the_website(): void
     {
         $admin = $this->admin();
-        $event = $this->event(['is_public' => true]);
+        $event = $this->event();
 
-        // A cleared checkbox posts nothing at all.
-        $this->actingAs($admin)->put("/admin/events/{$event->id}", [
-            'name' => $event->name, 'category' => 'tambike', 'event_type' => 'tambike',
-            'event_category' => 'motorcycle', 'event_date' => $event->event_date->toDateString(), 'status' => 'confirmed',
-        ])->assertRedirect();
+        $this->actingAs($admin)->patch("/admin/events/{$event->id}/archive")->assertRedirect();
 
-        $this->assertFalse($event->fresh()->is_public);
-        $this->assertEmpty($this->getJson('/client/calendar.json')->json('events'));
+        $this->assertEmpty(
+            $this->getJson('/client/calendar.json')->json('events'),
+            'archiving is the way to take a booking off the website',
+        );
     }
 
     public function test_cancelled_and_archived_events_drop_off_the_website(): void
     {
-        $this->event(['name' => 'Called Off', 'is_public' => true, 'status' => 'cancelled']);
-        $this->event(['name' => 'Shelved', 'is_public' => true, 'archived_at' => now()]);
-        $this->event(['name' => 'Still On', 'is_public' => true]);
+        $this->event(['name' => 'Called Off', 'status' => 'cancelled']);
+        $this->event(['name' => 'Shelved', 'archived_at' => now()]);
+        $this->event(['name' => 'Still On']);
 
         $titles = collect($this->getJson('/client/calendar.json')->json('events'))->pluck('title');
 
@@ -78,7 +77,6 @@ class PublicCalendarFeedTest extends TestCase
     public function test_the_feed_gives_out_nothing_beyond_the_whitelist(): void
     {
         $this->event([
-            'is_public' => true,
             'public_summary' => 'Meet at the shop, 7am.',
             'contact_person' => 'Ana Reyes',
             'contact_number' => '09171234567',
@@ -92,7 +90,7 @@ class PublicCalendarFeedTest extends TestCase
         $entry = $response->json('events.0');
 
         $this->assertSame(
-            ['id', 'title', 'date', 'end_date', 'start_time', 'end_time', 'venue', 'type', 'type_label', 'summary'],
+            ['id', 'title', 'date', 'end_date', 'start_time', 'end_time', 'venue', 'organization', 'type', 'type_label', 'summary'],
             array_keys($entry),
         );
         $this->assertSame('Meet at the shop, 7am.', $entry['summary']);
@@ -105,7 +103,7 @@ class PublicCalendarFeedTest extends TestCase
 
     public function test_a_multi_day_event_carries_its_last_day(): void
     {
-        $this->event(['is_public' => true, 'duration_days' => 3]);
+        $this->event(['duration_days' => 3]);
 
         $entry = $this->getJson('/client/calendar.json')->json('events.0');
 
@@ -115,7 +113,7 @@ class PublicCalendarFeedTest extends TestCase
 
     public function test_the_feed_can_be_read_from_another_site(): void
     {
-        $this->event(['is_public' => true]);
+        $this->event();
 
         $this->getJson('/client/calendar.json')
             ->assertOk()
@@ -124,7 +122,7 @@ class PublicCalendarFeedTest extends TestCase
 
     public function test_the_feed_needs_no_sign_in(): void
     {
-        $this->event(['is_public' => true]);
+        $this->event();
 
         $this->assertGuest();
         $this->getJson('/client/calendar.json')->assertOk();

@@ -31,7 +31,7 @@ class ShopifyCalendarSyncTest extends TestCase
         return Event::create(array_merge([
             'name' => 'Sunday Ride-Out', 'category' => 'tambike', 'event_type' => 'tambike',
             'event_category' => 'motorcycle', 'event_date' => today()->addWeek(), 'status' => 'confirmed',
-            'venue' => 'Imprint Customs', 'is_public' => true, 'created_by' => $admin->id,
+            'venue' => 'Imprint Customs', 'created_by' => $admin->id,
         ], $overrides));
     }
 
@@ -99,7 +99,9 @@ class ShopifyCalendarSyncTest extends TestCase
 
     public function test_an_event_taken_off_the_website_is_deleted_there(): void
     {
-        $event = $this->event(['is_public' => false]);
+        // Archiving is what takes an event off the website now that every live
+        // event is published.
+        $event = $this->event(['archived_at' => now()]);
         $this->fakeShopify([[
             'id' => 'gid://shopify/Metaobject/1',
             'handle' => 'imprint-event-'.$event->id,
