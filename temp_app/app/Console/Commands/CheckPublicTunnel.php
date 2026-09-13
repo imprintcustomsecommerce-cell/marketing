@@ -29,6 +29,11 @@ class CheckPublicTunnel extends Command
         Cache::forever('public_tunnel_status', ['online' => $online, 'checked_at' => now()->toIso8601String()]);
         $this->line($online ? 'PUBLIC TUNNEL ONLINE' : 'PUBLIC TUNNEL OFFLINE');
 
-        return $online ? self::SUCCESS : self::FAILURE;
+        // Reporting a tunnel as down is this command working, not failing. It
+        // used to exit non-zero, so the scheduler recorded a stack trace every
+        // five minutes the tunnel was off — 315 of them in one day, which
+        // buries anything that has actually gone wrong. The answer lives in the
+        // cache, where the dashboard reads it.
+        return self::SUCCESS;
     }
 }
